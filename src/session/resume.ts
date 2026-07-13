@@ -1,8 +1,8 @@
 import { format } from "date-fns"
-import { ensureDir, writeMarkdown, readJson, writeJson } from "../utils/fs"
+import { ensureDir, writeMarkdown, readJson, writeJson, isFileExists } from "../utils/fs"
 import { sessionsDir, sessionPath } from "../utils/paths"
 import type { SessionData, BloomStage } from "../utils/types"
-import { isFileExists, readFileSync } from "fs"
+import { readFileSync, readdirSync } from "fs"
 import { join } from "path"
 
 export interface ResumeResult {
@@ -74,7 +74,6 @@ export function getLatestSessionInfo(projectDir: string): { date: string; data: 
   const dir = sessionsDir(projectDir)
   if (!isFileExists(dir)) return null
 
-  const { readdirSync, statSync } = require("fs")
   const files = readdirSync(dir)
     .filter((f: string) => f.endsWith(".md"))
     .sort()

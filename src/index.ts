@@ -1,4 +1,5 @@
-import { type Plugin, tool } from "@opencode-ai/plugin" // v2
+import { type Plugin, tool } from "@opencode-ai/plugin"
+import { join } from "path"
 
 import { createCoachContext, handleGreeting, processCoachingChoice } from "./coach"
 import { createRoadmap } from "./roadmap/generator"
@@ -9,16 +10,16 @@ import { isProfileExists, readProfile } from "./utils/paths"
 import { writeMarkdown, ensureDir } from "./utils/fs"
 import { onboardingMessage, choicePrompt } from "./utils/templates"
 
-export const CodingSchoolPlugin: Plugin = async ({ project, directory, $ }) => {
-  const projectDir = directory || project?.path || "."
+export const CodingSchoolPlugin: Plugin = async ({ directory }) => {
+  const projectDir = directory || "."
 
   return {
     tool: {
       cs_coach_dialog: tool({
         description: "Mulai dialog dengan coach CodingSchool. Panggil ketika user ingin belajar atau butuh bimbingan.",
         args: {
-          message: tool.schema.string({description: "Pesan dari user"}),
-          choice: tool.schema.string().optional().describe("Pilihan A (selesaikan pekerjaan) atau B (belajar)"),
+          message: tool.schema.string(),
+          choice: tool.schema.string().optional(),
         },
         async execute(args) {
           const ctx = createCoachContext(projectDir)
@@ -40,8 +41,8 @@ export const CodingSchoolPlugin: Plugin = async ({ project, directory, $ }) => {
       cs_create_roadmap: tool({
         description: "Buat roadmap pembelajaran baru untuk topik tertentu. Buat learning contract di .codingschool/roadmap/",
         args: {
-          topic: tool.schema.string().describe("Topik yang ingin dipelajari, contoh: Dart, Flutter, Rust"),
-          level: tool.schema.enum(["beginner", "intermediate", "expert"]).describe("Level pembelajaran"),
+          topic: tool.schema.string(),
+          level: tool.schema.enum(["beginner", "intermediate", "expert"]),
         },
         async execute(args) {
           const path = createRoadmap({
@@ -56,9 +57,9 @@ export const CodingSchoolPlugin: Plugin = async ({ project, directory, $ }) => {
       cs_update_progress: tool({
         description: "Update progress belajar user. Catat penyelesaian item di roadmap.",
         args: {
-          topic: tool.schema.string().describe("Topik yang diupdate"),
-          item: tool.schema.string().describe("Item yang diselesaikan"),
-          status: tool.schema.enum(["done", "skipped", "in-progress"]).describe("Status penyelesaian"),
+          topic: tool.schema.string(),
+          item: tool.schema.string(),
+          status: tool.schema.enum(["done", "skipped", "in-progress"]),
         },
         async execute(args) {
           const progress = updateProgress({
@@ -74,9 +75,9 @@ export const CodingSchoolPlugin: Plugin = async ({ project, directory, $ }) => {
       cs_assess_quiz: tool({
         description: "Berikan penilaian rubrik terhadap jawaban user di quiz atau sesi belajar.",
         args: {
-          answers: tool.schema.string().describe("Jawaban user dalam format JSON atau teks"),
-          topic: tool.schema.string().describe("Topik yang dinilai"),
-          stage: tool.schema.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]).describe("Tahap Bloom saat ini"),
+          answers: tool.schema.string(),
+          topic: tool.schema.string(),
+          stage: tool.schema.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]),
         },
         async execute(args) {
           let answers: Record<string, string> = {}
@@ -99,7 +100,7 @@ export const CodingSchoolPlugin: Plugin = async ({ project, directory, $ }) => {
       cs_resume_session: tool({
         description: "Load sesi belajar sebelumnya. Cek .codingschool/sessions/ untuk checkpoint terakhir.",
         args: {
-          date: tool.schema.string().optional().describe("Tanggal sesi (YYYY-MM-DD). Kosongkan untuk sesi terbaru"),
+          date: tool.schema.string().optional(),
         },
         async execute(args) {
           if (args.date) {
@@ -140,7 +141,4 @@ Lanjutkan belajar atau mulai topik baru?`
   }
 }
 
-function join(...args: string[]): string {
-  const { join: pathJoin } = require("path")
-  return pathJoin(...args)
-}
+

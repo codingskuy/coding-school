@@ -1,7 +1,7 @@
-import { writeMarkdown, ensureDir } from "../utils/fs"
+import { writeMarkdown, ensureDir, readJson, writeJson } from "../utils/fs"
 import { roadmapDir, topicRoadmapPath } from "../utils/paths"
-import { readJson, writeJson } from "../utils/fs"
 import type { ProgressData } from "../utils/types"
+import { join } from "path"
 
 export interface CreateRoadmapOptions {
   projectDir: string
@@ -81,10 +81,7 @@ export function createRoadmap(options: CreateRoadmapOptions): string {
   return path
 }
 
-function join(...args: string[]): string {
-  const { join: pathJoin } = require("path")
-  return pathJoin(...args)
-}
+
 
 function getTheoryTopics(topic: string, level: string): string[] {
   const defaults: string[] = [

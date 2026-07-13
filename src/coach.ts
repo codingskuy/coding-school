@@ -1,8 +1,8 @@
-import type { CoachIntent, CoachChoice, BloomStage } from "./utils/types"
+import type { CoachIntent, CoachChoice, ProgressData } from "./utils/types"
 import { detectIntent, choicePrompt, prerequisiteGateMessage, bloomStagePrompt } from "./utils/templates"
-import { readProfile, getLatestSessionDate, topicRoadmapPath, isProfileExists } from "./utils/paths"
+import { readProfile, getLatestSessionDate, isProfileExists } from "./utils/paths"
 import { isFileExists, readJson } from "./utils/fs"
-import type { ProgressData, SessionData, RoadmapContract } from "./utils/types"
+import { join } from "path"
 
 export interface CoachContext {
   projectDir: string
@@ -12,23 +12,6 @@ export interface CoachResponse {
   message: string
   shouldPromptChoice?: boolean
   intent: CoachIntent
-}
-
-function parseRoadmap(filePath: string): RoadmapContract | null {
-  if (!isFileExists(filePath)) return null
-  return null
-}
-
-function isPrerequisiteSatisfied(
-  projectDir: string,
-  topic: string,
-  prerequisite: string,
-): boolean {
-  const progress = readJson<ProgressData>(
-    progressPath(projectDir),
-    { topics: {}, global: { softwareEngineering: 0, knowledge: 0, practice: 0, architecture: 0 }, xp: 0, level: 1 },
-  )
-  return progress.topics[prerequisite]?.percent === 100
 }
 
 export function createCoachContext(projectDir: string): CoachContext {
@@ -162,7 +145,6 @@ Pilih level untuk memulai.`
 }
 
 function progressPath(projectDir: string): string {
-  const { join } = require("path")
   return join(projectDir, ".codingschool", "progress.json")
 }
 
