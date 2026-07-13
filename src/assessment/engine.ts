@@ -1,4 +1,7 @@
-import type { AssessmentRubric, BloomStage } from "../utils/types"
+import { ensureDir, writeJson, readJson } from "../utils/fs"
+import { reportsDir } from "../utils/paths"
+import { join } from "path"
+import type { AssessmentRubric, BloomStage, ProgressData } from "../utils/types"
 
 export interface AssessOptions {
   answers: Record<string, string>
@@ -118,4 +121,49 @@ function generateFeedback(topic: string, stage: BloomStage, analysis: { depth: n
     case "create":
       return `Complete! You've gone through the full Bloom cycle for ${topic}. Outstanding!`
   }
+}
+
+export function saveAssessment(
+  projectDir: string,
+  topic: string,
+  rubric: AssessmentRubric,
+): string {
+  const dir = reportsDir(projectDir)
+  ensureDir(dir)
+  const path = join(dir, `${topic.toLowerCase().replace(/\s+/g, "-")}.json`)
+
+  const existing = readJson<{ assessments: Array<{ date: string; rubric: AssessmentRubric }> }>(
+    path,
+    { assessments: [] },
+  )
+
+  existing.assessments.push({
+    date: new Date().toISOString(),
+    rubric,
+  })
+
+  writeJson(path, existing)
+
+  const progressPath = join(projectDir, ".codingschool", "progress.json")
+  const progress = readJson<ProgressData>(
+    progressPath,
+    { topics: {}, global: { softwareEngineering: 0, knowledge: 0, practice: 0, architecture: 0 }, xp: 0, level: 1 },
+  )
+
+  if (rubric.total >= 70 && progress.topics[topic]) {
+    progress.topics[topic].currentBloomStage = advanceBloomStage(progress.topics[topic].currentBloomStage)
+    progress.xp += 100
+  }
+
+  writeJson(progressPath, progress)
+
+  return path
+}
+
+function advanceBloomStage(current: BloomStage | null): BloomStage {
+  const order: BloomStage[] = ["remember", "understand", "apply", "analyze", "evaluate", "create"]
+  if (!current) return "understand"
+  const idx = order.indexOf(current)
+  if (idx >= order.length - 1) return current
+  return order[idx + 1]
 }

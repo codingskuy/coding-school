@@ -112,14 +112,24 @@ function parseSessionFile(filePath: string): SessionData {
 
   const bloomStageLine = extractSection("Bloom Stage")
   const progressLine = extractSection("Progress")
+  const completedSection = extractSection("Completed Items")
+  const notesSection = extractSection("Notes")
+
+  const completedItems = completedSection
+    ? completedSection.split("\n").map(l => l.replace(/^- \[x\]\s*/, "").trim()).filter(Boolean)
+    : []
+
+  const notes = notesSection
+    ? notesSection.split("\n").map(l => l.replace(/^-\s*/, "").trim()).filter(Boolean)
+    : []
 
   return {
     topic: extractSection("Topic"),
     level: extractSection("Level"),
     progressPercent: parseInt(progressLine) || 0,
     bloomStage: (bloomStageLine.toLowerCase() as BloomStage) || "remember",
-    completedItems: [],
-    notes: [],
+    completedItems,
+    notes,
     lastActivity: extractSection("Last Activity"),
   }
 }

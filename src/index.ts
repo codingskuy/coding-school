@@ -1,14 +1,48 @@
 import { type Plugin, tool } from "@opencode-ai/plugin"
 import { join } from "path"
 
-import { createCoachContext, handleGreeting, processCoachingChoice } from "./coach"
+import {
+  createCoachContext,
+  handleGreeting,
+  handleLearnTopic,
+  handleQuestionRoadmap,
+  handlePrerequisiteQuestion,
+  handleAchievement,
+  handleResume,
+  handleStatusCheck,
+  processCoachingChoice,
+} from "./coach"
+import { detectIntent, onboardingMessage, choicePrompt } from "./utils/templates"
 import { createRoadmap } from "./roadmap/generator"
 import { getProgress, updateProgress, renderDashboard } from "./progress/tracker"
-import { assessQuiz, renderAssessment } from "./assessment/engine"
+import { assessQuiz, renderAssessment, saveAssessment } from "./assessment/engine"
 import { resumeSession, createOrUpdateSession, getLatestSessionInfo } from "./session/resume"
-import { isProfileExists, readProfile } from "./utils/paths"
-import { writeMarkdown, ensureDir } from "./utils/fs"
-import { onboardingMessage, choicePrompt } from "./utils/templates"
+import { isProfileExists } from "./utils/paths"
+import { ensureDir, readJson, writeJson } from "./utils/fs"
+import { progressPath } from "./utils/paths"
+import type { ProgressData } from "./utils/types"
+
+function extractTopic(message: string): string {
+  const lower = message.toLowerCase()
+  const patterns = [
+    /(?:learn|study|about|want to learn|wanna learn)\s+(\w+(?:\s+\w+)?)/i,
+    /(?:how (?:to|do|does|can)|what is|explain)\s+(\w+(?:\s+\w+)?)/i,
+    /(?:teach me|tell me about)\s+(\w+(?:\s+\w+)?)/i,
+  ]
+  for (const p of patterns) {
+    const m = message.match(p)
+    if (m) return m[1]
+  }
+  return message.split(/\s+/).slice(0, 3).join(" ")
+}
+
+function extractLevelChoice(message: string): "beginner" | "intermediate" | "expert" {
+  const lower = message.toLowerCase()
+  if (/\b(beginner|easy|basic|newbie)\b/.test(lower)) return "beginner"
+  if (/\b(intermediate|medium)\b/.test(lower)) return "intermediate"
+  if (/\b(expert|advanced|hard|pro)\b/.test(lower)) return "expert"
+  return "beginner"
+}
 
 export const CodingSchoolPlugin: Plugin = async ({ directory }) => {
   const projectDir = directory || "."
@@ -29,12 +63,43 @@ export const CodingSchoolPlugin: Plugin = async ({ directory }) => {
             return result.message
           }
 
-          if (!isProfileExists(projectDir)) {
-            return onboardingMessage()
+          if (!args.message) {
+            if (!isProfileExists(projectDir)) {
+              return onboardingMessage()
+            }
+            const greeting = handleGreeting(ctx)
+            return greeting.message || "How can I help you learn today?"
           }
 
-          const greeting = handleGreeting(ctx)
-          return greeting.message || "How can I help you learn today?"
+          const intent = detectIntent(args.message)
+          const topic = extractTopic(args.message)
+
+          switch (intent) {
+            case "greeting": {
+              if (!isProfileExists(projectDir)) {
+                return onboardingMessage()
+              }
+              const greeting = handleGreeting(ctx)
+              return greeting.message || "How can I help you learn today?"
+            }
+            case "learn-topic":
+              return handleLearnTopic(topic).message
+            case "question-roadmap":
+              return handleQuestionRoadmap(projectDir, topic, args.message).message
+            case "question-prerequisite":
+              return handlePrerequisiteQuestion(projectDir, topic).message
+            case "achievement":
+              return handleAchievement(topic).message
+            case "resume":
+              return handleResume(projectDir).message
+            case "status-check":
+              return handleStatusCheck(projectDir).message
+            case "complete-task":
+              return processCoachingChoice("A").message
+            case "unknown":
+            default:
+              return `I'm here to help you learn. Tell me what you'd like to study, or ask me about your progress.\n\n${onboardingMessage()}`
+          }
         },
       }),
 
@@ -45,6 +110,9 @@ export const CodingSchoolPlugin: Plugin = async ({ directory }) => {
           level: tool.schema.enum(["beginner", "intermediate", "expert"]),
         },
         async execute(args) {
+          if (!args.topic || args.topic.trim().length === 0) {
+            return "Please specify a topic to learn."
+          }
           const path = createRoadmap({
             projectDir,
             topic: args.topic,
@@ -62,6 +130,9 @@ export const CodingSchoolPlugin: Plugin = async ({ directory }) => {
           status: tool.schema.enum(["done", "skipped", "in-progress"]),
         },
         async execute(args) {
+          if (!args.topic || !args.item) {
+            return "Both topic and item are required."
+          }
           const progress = updateProgress({
             projectDir,
             topic: args.topic,
@@ -92,6 +163,8 @@ export const CodingSchoolPlugin: Plugin = async ({ directory }) => {
             topic: args.topic,
             stage: args.stage,
           })
+
+          saveAssessment(projectDir, args.topic, rubric)
 
           return renderAssessment(rubric)
         },
@@ -136,6 +209,10 @@ Continue learning or start a new topic?`
     event: async ({ event }) => {
       if (event.type === "session.created") {
         ensureDir(join(projectDir, ".codingschool", "sessions"))
+        ensureDir(join(projectDir, ".codingschool", "roadmap"))
+        ensureDir(join(projectDir, ".codingschool", "quizzes"))
+        ensureDir(join(projectDir, ".codingschool", "reports"))
+        ensureDir(join(projectDir, ".codingschool", "certificates"))
       }
     },
   }

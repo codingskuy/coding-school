@@ -9,7 +9,9 @@ export interface TopicProgress {
   name: string
   percent: number
   theory: string[]
+  completedTheory: string[]
   practice: string[]
+  completedPractice: string[]
   quizzes: string[]
   currentBloomStage: BloomStage | null
 }

@@ -15,6 +15,19 @@ export function roadmapDir(projectDir: string): string {
   return join(codingschoolDir(projectDir), "roadmap")
 }
 
+export function topicRoadmapDir(projectDir: string, topic: string): string {
+  return join(roadmapDir(projectDir), topic.toLowerCase())
+}
+
+export function roadmapTopicsList(projectDir: string): string[] {
+  const dir = roadmapDir(projectDir)
+  if (!existsSync(dir)) return []
+  return readdirSync(dir).filter(f => {
+    const full = join(dir, f)
+    return statSync(full).isDirectory()
+  })
+}
+
 export function sessionsDir(projectDir: string): string {
   return join(codingschoolDir(projectDir), "sessions")
 }
@@ -27,6 +40,10 @@ export function reportsDir(projectDir: string): string {
   return join(codingschoolDir(projectDir), "reports")
 }
 
+export function certificatesDir(projectDir: string): string {
+  return join(codingschoolDir(projectDir), "certificates")
+}
+
 export function profilePath(projectDir: string): string {
   return join(codingschoolDir(projectDir), "profile.md")
 }
@@ -36,7 +53,7 @@ export function progressPath(projectDir: string): string {
 }
 
 export function topicRoadmapPath(projectDir: string, topic: string, level: string): string {
-  return join(roadmapDir(projectDir), topic, `${level}.md`)
+  return join(roadmapDir(projectDir), topic.toLowerCase(), `${level}.md`)
 }
 
 export function sessionPath(projectDir: string, date: string): string {

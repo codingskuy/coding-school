@@ -30,17 +30,27 @@ export function updateProgress(options: UpdateProgressOptions): ProgressData {
       name: topic,
       percent: 0,
       theory: [],
+      completedTheory: [],
       practice: [],
+      completedPractice: [],
       quizzes: [],
       currentBloomStage: null,
     }
   }
 
+  const tp = progress.topics[topic]
+
   if (status === "done") {
     progress.xp += 50
+    if (tp.theory.includes(item) && !tp.completedTheory.includes(item)) {
+      tp.completedTheory.push(item)
+    }
+    if (tp.practice.includes(item) && !tp.completedPractice.includes(item)) {
+      tp.completedPractice.push(item)
+    }
   }
 
-  recalculatePercent(progress.topics[topic])
+  recalculatePercent(tp)
   recalculateGlobal(progress)
   recalculateLevel(progress)
 
@@ -57,10 +67,12 @@ export function renderProgressBar(percent: number, width: number = 10): string {
 export function renderDashboard(progress: ProgressData): string {
   const lines: string[] = []
 
-  for (const [key, topic] of Object.entries(progress.topics)) {
-    if (topic.percent > 0) {
-      lines.push(`${topic.name.padEnd(30)} ${renderProgressBar(topic.percent)}  ${topic.percent}%`)
-    }
+  const sorted = Object.entries(progress.topics)
+    .filter(([_, t]) => t.percent > 0)
+    .sort(([_, a], [__, b]) => b.percent - a.percent)
+
+  for (const [_, topic] of sorted) {
+    lines.push(`${topic.name.padEnd(30)} ${renderProgressBar(topic.percent)}  ${topic.percent}%`)
   }
 
   lines.push("")
@@ -69,7 +81,7 @@ export function renderDashboard(progress: ProgressData): string {
   lines.push(`Practice                ${renderProgressBar(progress.global.practice)}  ${progress.global.practice}%`)
   lines.push(`Architecture            ${renderProgressBar(progress.global.architecture)}  ${progress.global.architecture}%`)
   lines.push("")
-  lines.push(`XP: ${progress.xp} / ${progress.level * 1000}`)
+  lines.push(`XP: ${progress.xp} / ${(progress.level + 1) * 1000}`)
   lines.push(`Level: ${progress.level}`)
 
   return lines.join("\n")
@@ -81,7 +93,10 @@ function recalculatePercent(topic: TopicProgress): void {
     topic.percent = 0
     return
   }
-  topic.percent = Math.round((topic.theory.length + topic.practice.length) / total * 100)
+  const doneTheory = topic.completedTheory.length
+  const donePractice = topic.completedPractice.length
+  const doneTotal = doneTheory + donePractice
+  topic.percent = Math.round(doneTotal / total * 100)
 }
 
 function recalculateGlobal(progress: ProgressData): void {

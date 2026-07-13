@@ -85,6 +85,75 @@ const THEORY_TEMPLATES: Record<string, Record<string, string[]>> = {
       "Widget testing & integration testing strategies",
     ],
   },
+  git: {
+    beginner: [
+      "Repository Init & Clone",
+      "Commit, Diff, Log",
+      "Branch & Merge",
+      "Remote: Push, Pull, Fetch",
+      "Undoing Changes (reset, revert, restore)",
+    ],
+    intermediate: [
+      "Rebase vs Merge",
+      "Cherry-pick & Stash",
+      "Conflict Resolution Strategies",
+      "Git Hooks",
+      "Tagging & Releases",
+    ],
+    expert: [
+      "Git Internals (objects, refs, packfiles)",
+      "Bisect & Advanced Debugging",
+      "Submodules & Subtrees",
+      "Custom Git Commands & Aliases",
+      "Performance Tuning (bitmap, partial clone)",
+    ],
+  },
+  architecture: {
+    beginner: [
+      "What is Software Architecture?",
+      "Layered Architecture",
+      "Client-Server Model",
+      "Monolith vs Microservices",
+      "API Design Basics (REST)",
+    ],
+    intermediate: [
+      "Domain-Driven Design",
+      "Event-Driven Architecture",
+      "CQRS & Event Sourcing",
+      "Hexagonal Architecture",
+      "Message Queues & Pub/Sub",
+    ],
+    expert: [
+      "Architecture Decision Records (ADR)",
+      "Scalability Patterns (sharding, replication)",
+      "Chaos Engineering",
+      "Distributed Transactions & Sagas",
+      "Evolutionary Architecture",
+    ],
+  },
+  testing: {
+    beginner: [
+      "Unit Testing Principles",
+      "Test Pyramid",
+      "Assertions & Matchers",
+      "Test Doubles (mock, stub, fake)",
+      "Test-Driven Development (TDD)",
+    ],
+    intermediate: [
+      "Integration Testing",
+      "Property-Based Testing",
+      "Behavior-Driven Development (BDD)",
+      "Code Coverage & Mutation Testing",
+      "E2E Testing",
+    ],
+    expert: [
+      "Testing in Production (canary, feature flags)",
+      "Performance & Load Testing",
+      "Chaos Testing",
+      "Test Infrastructure (CI pipelines, containers)",
+      "Contract Testing (Pact, Spring Cloud Contract)",
+    ],
+  },
   default: {
     beginner: [
       "Fundamental Concepts",
@@ -209,6 +278,8 @@ export function createRoadmap(options: CreateRoadmapOptions): string {
       theory,
       practice,
       quizzes: [`Quiz 1 — ${topic} fundamentals`, `Quiz 2 — ${topic} ${level} concepts`],
+      completedTheory: [],
+      completedPractice: [],
       currentBloomStage: null,
     }
   }
