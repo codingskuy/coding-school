@@ -21,8 +21,8 @@
     "access": "public"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --external @opencode-ai/plugin && tsc --emitDeclarationOnly --outDir dist",
-    "build:quick": "bun build src/index.ts --outdir dist --external @opencode-ai/plugin",
+    "build": "bun build src/index.ts --outdir dist --external @opencode-ai/plugin --target node && tsc --emitDeclarationOnly --outDir dist",
+    "build:quick": "bun build src/index.ts --outdir dist --external @opencode-ai/plugin --target node",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "bun run build",
