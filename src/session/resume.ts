@@ -98,7 +98,7 @@ export function updateProgressFromSession(projectDir: string, topic: string, pro
   writeJson(progressPath, data)
 }
 
-function parseSessionFile(filePath: string): SessionData {
+export function parseSessionFile(filePath: string): SessionData {
   const content = readFileSync(filePath, "utf-8")
   const lines = content.split("\n")
 

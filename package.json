@@ -23,6 +23,7 @@
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --external @opencode-ai/plugin && tsc --emitDeclarationOnly --outDir dist",
     "build:quick": "bun build src/index.ts --outdir dist --external @opencode-ai/plugin",
+    "test": "bun test",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "bun run build",
     "clean": "rm -rf dist"

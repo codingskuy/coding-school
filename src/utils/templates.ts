@@ -1,26 +1,27 @@
 import type { CoachIntent, BloomStage } from "./types"
 
 export function detectIntent(message: string): CoachIntent {
-  const lower = message.toLowerCase()
+  const lower = message.toLowerCase().trim()
+  if (!lower) return "unknown"
 
   if (/^(hi|hello|hey)\b/.test(lower)) {
     return "greeting"
-  }
-
-  if (/^(i want|i wanna|i would like|want|wanna)\s+(to\s+)?(learn|study|understand|master)/.test(lower)) {
-    return "learn-topic"
-  }
-
-  if (/^(learn|understand|got it|i see|i understand|i get it)\b/.test(lower)) {
-    return "learn-topic"
   }
 
   if (/^(ok|okay|alright|got it|understood|i understand|i see)\b/.test(lower)) {
     return "achievement"
   }
 
-  if (/^(i|we)\s+(finished|completed|succeeded|done|managed|successfully)/.test(lower)) {
-    return "achievement"
+  if (/^(finish|complete|work on|help me)\b/.test(lower)) {
+    return "complete-task"
+  }
+
+  if (/^(i want|i wanna|i would like|want|wanna)\s+(to\s+)?(learn|study|understand|master)/.test(lower)) {
+    return "learn-topic"
+  }
+
+  if (/^(progress|status|how far|dashboard)\b/.test(lower)) {
+    return "status-check"
   }
 
   if (/^(continue|resume|ready|next|let's go|proceed)\b/.test(lower)) {
@@ -35,12 +36,12 @@ export function detectIntent(message: string): CoachIntent {
     return "question-prerequisite"
   }
 
-  if (/\b(finish|complete|done|task|job)\b/.test(lower)) {
-    return "complete-task"
+  if (/^(learn|understand|i get it)\b/.test(lower)) {
+    return "learn-topic"
   }
 
-  if (/^(progress|status|how far|dashboard)\b/.test(lower)) {
-    return "status-check"
+  if (/^(i|we)\s+(finished|completed|succeeded|done|managed|successfully)/.test(lower)) {
+    return "achievement"
   }
 
   return "unknown"
