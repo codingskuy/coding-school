@@ -2,7 +2,7 @@ name: NPM Publish Deployment
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     tags:
       - 'v*.*.*'
 
