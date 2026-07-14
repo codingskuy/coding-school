@@ -52,33 +52,27 @@ export function onboardingMessage(): string {
 
 I will help you learn software engineering the right way — not just generate code.
 
-Tell me your learning goal or the topic you want to study.
-I will create a learning plan tailored for you.`
+Ask the user what topic they want to learn or the goal they want to achieve.
+Use the "question" tool to ask, so they can type their answer or choose a suggestion.`
 }
 
 export function choicePrompt(): string {
-  return `What would you like to do:
-
-A. Complete the task
-
-or
-
-B. Build your skills?`
+  return `Ask the user what they want to do. Use the "question" tool with options:
+- Complete the task
+- Build your skills`
 }
 
 export function contextEstimation(topic: string): string {
   return `I will be your mentor.
 
-Topic:
-✔ ${topic}
+Topic: ${topic}
 
 Estimated context needed:
-
   Beginner    ≈ 25k context
   Intermediate ≈ 80k context
   Expert      ≈ 250k context
 
-Pick a level to start.`
+Ask the user to pick a level. Use the "question" tool with options: Beginner, Intermediate, Expert.`
 }
 
 export function bloomStagePrompt(stage: BloomStage, topic: string): string {

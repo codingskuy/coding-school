@@ -1,6 +1,6 @@
 {
   "name": "@codingskuy/coding-school",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "CodingSchool — Learn Software Engineering with AI, not From AI. OpenCode plugin mentor.",
   "type": "module",
   "main": "dist/index.js",
@@ -9,6 +9,7 @@
   "exports": {
     ".": {
       "import": "./dist/index.js",
+      "require": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
   },

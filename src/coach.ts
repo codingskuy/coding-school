@@ -27,12 +27,12 @@ export function handleGreeting(ctx: CoachContext): CoachResponse {
   const latestSession = getLatestSessionDate(ctx.projectDir)
   if (latestSession) {
     return {
-      message: `Welcome back! Your last session was on ${latestSession}.\nWould you like to continue or start a new topic?`,
+      message: `Welcome back! Your last session was on ${latestSession}.\nAsk the user if they want to continue or start a new topic. Use the "question" tool with options: Continue, Start New Topic.`,
       intent: "greeting",
     }
   }
   return {
-    message: `Good to see you again!\nAnything you'd like to learn or ask today?`,
+    message: `Good to see you again!\nAsk the user what they'd like to learn or ask about. Use the "question" tool.`,
     intent: "greeting",
   }
 }
@@ -100,7 +100,7 @@ export function handlePrerequisiteQuestion(
 
 export function handleAchievement(topic: string): CoachResponse {
   return {
-    message: `Well done! That's solid understanding.\n\nI'll log your progress. Ready for the next challenge or want to review first?`,
+    message: `Well done! That's solid understanding.\n\nI'll log your progress. Ask the user if they want the next challenge or to review first. Use the "question" tool with options: Next Challenge, Review First.`,
     intent: "achievement",
   }
 }
@@ -109,7 +109,7 @@ export function handleResume(projectDir: string): CoachResponse {
   const latestDate = getLatestSessionDate(projectDir)
   if (!latestDate) {
     return {
-      message: `No previous sessions found. Start a new learning journey? Tell me a topic you'd like to study.`,
+      message: `No previous sessions found. Ask the user what topic they'd like to study. Use the "question" tool.`,
       intent: "resume",
     }
   }
@@ -140,12 +140,12 @@ export function handleStatusCheck(projectDir: string): CoachResponse {
 export function processCoachingChoice(choice: CoachChoice): CoachResponse {
   if (choice === "A") {
     return {
-      message: "Alright, I'll help you get the task done. Tell me what needs to be done.",
+      message: `Alright, I'll help you get the task done.\nAsk the user what needs to be done. Use the "question" tool.`,
       intent: "complete-task",
     }
   }
   return {
-    message: "Great! Let's start your learning journey. What topic would you like to study?",
+    message: `Great! Let's start your learning journey.\nAsk the user what topic they'd like to study. Use the "question" tool.`,
     intent: "learn-topic",
   }
 }

@@ -3,3 +3,5 @@ node_modules/
 .codingschool/
 .env
 *.log
+PRD.md
+BRD.md

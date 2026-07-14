@@ -6,41 +6,17 @@ CodingSchool is an OpenCode plugin that acts as a software engineering learning 
 
 ## Installation
 
-### From npm (recommended)
-
-```bash
-# Install plugin
-npm install @codingskuy/coding-school
-
-# Or via bun
-bun add @codingskuy/coding-school
-```
-
-Then add to `opencode.json`:
+Add to `opencode.json`:
 
 ```jsonc
 {
-  "agent": {
-    "coding-school": {
-      "description": "Software engineering learning mentor",
-      "prompt": "You are the CodingSchool mentor. Your job is to teach the user to understand concepts, not just give answers. Always offer choice A (complete the task) or B (learn) before starting a learning session.",
-      "tools": { "write": false, "edit": false }
-    }
-  },
   "plugin": ["@codingskuy/coding-school"]
 }
 ```
 
-### From local folder
+The plugin auto-registers the CodingSchool agent, system prompt, and tool permissions — no manual agent config needed.
 
-```jsonc
-{
-  "agent": {
-    "coding-school": { /* ... */ }
-  },
-  "plugin": ["./path/to/coding-school-plugin"]
-}
-```
+> Requires OpenCode v0.7+ (uses Plugin V2 API with `experimental.chat.system.transform`).
 
 ## Tools
 

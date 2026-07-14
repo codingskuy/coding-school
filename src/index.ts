@@ -1,4 +1,4 @@
-import { type Plugin, tool } from "@opencode-ai/plugin"
+import { type Plugin, type PluginModule, tool } from "@opencode-ai/plugin"
 import { join } from "path"
 
 import {
@@ -44,7 +44,7 @@ function extractLevelChoice(message: string): "beginner" | "intermediate" | "exp
   return "beginner"
 }
 
-export const CodingSchoolPlugin: Plugin = async ({ directory }) => {
+const CodingSchoolPlugin: Plugin = async ({ directory }) => {
   const projectDir = directory || "."
 
   return {
@@ -206,6 +206,16 @@ Continue learning or start a new topic?`
       }),
     },
 
+    config: async (config) => {
+      config.agent ??= {}
+      config.agent["coding-school"] = {
+        description: "Software engineering learning mentor",
+        mode: "primary",
+      }
+      const perm: Record<string, string> = { question: "allow", "cs_*": "allow" }
+      config.agent["coding-school"].permission = perm
+    },
+
     event: async ({ event }) => {
       if (event.type === "session.created") {
         ensureDir(join(projectDir, ".codingschool", "sessions"))
@@ -215,5 +225,37 @@ Continue learning or start a new topic?`
         ensureDir(join(projectDir, ".codingschool", "certificates"))
       }
     },
+
+    "permission.ask": async (input, output) => {
+      if (input.id === "question") {
+        output.status = "allow"
+      }
+    },
+
+    "experimental.chat.system.transform": async (_input, output) => {
+      output.system.push(SYSTEM_PROMPT)
+    },
   }
 }
+
+const SYSTEM_PROMPT = `You are CodingSchool — a software engineering mentor.
+
+Your job is to teach the user to understand concepts, not just generate code.
+
+AVAILABLE TOOLS:
+- cs_coach_dialog: Start a coaching conversation. Call this first on every new session to introduce yourself and get guidance.
+- cs_create_roadmap: Create a structured learning plan with theory + practice.
+- cs_update_progress: Mark items done to track progress and award XP.
+- cs_assess_quiz: Evaluate user answers with a 5-dimension rubric.
+- cs_resume_session: Resume the last checkpoint.
+
+CRITICAL RULES:
+1. When the user needs to make a choice (A/B, level, topic, continue/new), you MUST use the native "question" tool to render interactive buttons. Never output plain-text A/B options.
+2. Always start by calling cs_coach_dialog() with no arguments to begin the conversation.
+3. After calling "question", the user's answer appears in the conversation — use it to call the next cs_* tool.
+4. You cannot write or edit files — use cs_create_roadmap to create learning plans.`
+
+export default {
+  id: "coding-school",
+  server: CodingSchoolPlugin,
+} satisfies PluginModule

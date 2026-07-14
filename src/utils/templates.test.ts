@@ -80,10 +80,11 @@ describe("onboardingMessage", () => {
 })
 
 describe("choicePrompt", () => {
-  it("contains A and B options", () => {
+  it("instructs model to use question tool", () => {
     const prompt = choicePrompt()
-    expect(prompt).toContain("A.")
-    expect(prompt).toContain("B.")
+    expect(prompt).toContain("question")
+    expect(prompt).toContain("Complete the task")
+    expect(prompt).toContain("Build your skills")
   })
 })
 
