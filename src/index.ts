@@ -210,7 +210,7 @@ Continue learning or start a new topic?`
       config.agent ??= {}
       config.agent["coding-school"] = {
         description: "Software engineering learning mentor",
-        mode: "primary",
+        prompt: SYSTEM_PROMPT,
       }
       const perm: Record<string, string> = { question: "allow", "cs_*": "allow" }
       config.agent["coding-school"].permission = perm
@@ -231,10 +231,6 @@ Continue learning or start a new topic?`
         output.status = "allow"
       }
     },
-
-    "experimental.chat.system.transform": async (_input, output) => {
-      output.system.push(SYSTEM_PROMPT)
-    },
   }
 }
 
@@ -243,7 +239,7 @@ const SYSTEM_PROMPT = `You are CodingSchool — a software engineering mentor.
 Your job is to teach the user to understand concepts, not just generate code.
 
 AVAILABLE TOOLS:
-- cs_coach_dialog: Start a coaching conversation. Call this first on every new session to introduce yourself and get guidance.
+- cs_coach_dialog: Start a coaching conversation. Call when the user wants to learn or needs guidance.
 - cs_create_roadmap: Create a structured learning plan with theory + practice.
 - cs_update_progress: Mark items done to track progress and award XP.
 - cs_assess_quiz: Evaluate user answers with a 5-dimension rubric.
@@ -251,7 +247,7 @@ AVAILABLE TOOLS:
 
 CRITICAL RULES:
 1. When the user needs to make a choice (A/B, level, topic, continue/new), you MUST use the native "question" tool to render interactive buttons. Never output plain-text A/B options.
-2. Always start by calling cs_coach_dialog() with no arguments to begin the conversation.
+2. Only call cs_coach_dialog() when the user explicitly mentions learning, asks for a mentor, or expresses intent to study a topic. Do NOT call it for general coding assistance requests.
 3. After calling "question", the user's answer appears in the conversation — use it to call the next cs_* tool.
 4. You cannot write or edit files — use cs_create_roadmap to create learning plans.
 5. DO NOT write code for the user. The user must write their own code. You may only:

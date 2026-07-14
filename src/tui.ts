@@ -1,4 +1,6 @@
 import type { TuiPluginModule } from "@opencode-ai/plugin/tui"
+import { existsSync } from "fs"
+import { join } from "path"
 
 import { buildCodingSchoolView } from "./sidebar/views"
 import type { ViewNode } from "./sidebar/element-helpers"
@@ -54,6 +56,11 @@ const module: TuiPluginModule = {
 
     const directory = api.state.path.directory
     const worktree = api.state.path.worktree
+
+    const roadmapDir = join(directory, ".codingschool", "roadmap")
+    if (!existsSync(roadmapDir)) {
+      return
+    }
 
     let currentNodes = buildCodingSchoolView(directory, worktree, api.theme.current)
     let currentKey = JSON.stringify(currentNodes)

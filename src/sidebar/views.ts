@@ -143,13 +143,16 @@ export function buildCodingSchoolView(
   theme: ThemeLike,
 ): ViewNode[] {
   const projectDir = findProjectDir(directory, worktree)
-  const progress = readProgress(projectDir)
   const roadmaps = readRoadmapsMd(projectDir)
+  if (roadmaps.length === 0) {
+    return []
+  }
+  const progress = readProgress(projectDir)
 
   return [
     box({ flexDirection: "column", gap: 1 }, [
       buildProgressSection(progress, theme),
-      ...(roadmaps.length > 0 ? roadmaps.flatMap(r => buildRoadmapSection(r, theme)) : []),
+      ...roadmaps.flatMap(r => buildRoadmapSection(r, theme)),
     ]),
   ]
 }
