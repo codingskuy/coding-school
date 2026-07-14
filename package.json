@@ -1,6 +1,6 @@
 {
   "name": "@codingskuy/coding-school",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "CodingSchool — Learn Software Engineering with AI, not From AI. OpenCode plugin mentor.",
   "type": "module",
   "main": "dist/index.js",
