@@ -14,9 +14,9 @@ Add to `opencode.json`:
 }
 ```
 
-The plugin auto-registers the CodingSchool agent, system prompt, and tool permissions — no manual agent config needed.
+The plugin auto-registers the CodingSchool agent via config hook, system prompt, and tool permissions — no manual agent config needed.
 
-> Requires OpenCode v0.7+ (uses Plugin V2 API with `experimental.chat.system.transform`).
+> Requires OpenCode v0.7+ (uses Plugin V2 API).
 
 ## Tools
 
