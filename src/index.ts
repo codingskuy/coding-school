@@ -71,6 +71,10 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
             return greeting.message || "How can I help you learn today?"
           }
 
+          if (args.message.length > 100 || /^##\s/m.test(args.message)) {
+            return "Content acknowledged. Present it directly to the user as text."
+          }
+
           const intent = detectIntent(args.message)
           const topic = extractTopic(args.message)
 
@@ -272,7 +276,13 @@ CRITICAL RULES:
    a. Read the roadmap .md file that was just created
    b. Show the full roadmap content to the user
    c. Use the "question" tool: "Setuju, lanjut belajar" / "Ada koreksi, regenerate roadmap"
-   d. If user chooses koreksi, ask what needs to be changed, then call cs_create_roadmap again with the updated requirements.`
+   d. If user chooses koreksi, ask what needs to be changed, then call cs_create_roadmap again with the updated requirements.
+8. NEVER pass your own teaching content as the message argument to cs_coach_dialog.
+   - The message argument should ONLY contain the USER's message (e.g. "belajar backend", "apa itu REST")
+   - Teaching content should be output directly as text in your response, NOT passed to any tool
+   - After calling cs_update_progress, output the teaching material directly as text
+   - cs_coach_dialog is ONLY for detecting user intent (greeting, learn, question, progress check)
+9. After calling cs_update_progress, you MUST immediately output the teaching content as text. Do NOT call cs_coach_dialog in the same turn.`
 
 export default {
   id: "coding-school",
