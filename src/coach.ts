@@ -1,9 +1,10 @@
-import type { CoachIntent, CoachChoice, ProgressData } from "./utils/types"
+import type { CoachIntent, CoachChoice, ProgressData, StudentModel } from "./utils/types"
 import { prerequisiteGateMessage, bloomStagePrompt, contextEstimation } from "./utils/templates"
-import { getLatestSessionDate, isProfileExists, topicRoadmapPath, roadmapTopicsList } from "./utils/paths"
+import { getLatestSessionDate, isProfileExists, progressPath } from "./utils/paths"
 import { readJson } from "./utils/fs"
-import { join } from "path"
-import { existsSync, readFileSync } from "fs"
+import { reviewCode, assessArchitecture, scanGRC, generateMentoringPlan, updateEngineeringFromReview, type CodeReviewResult, type ArchitectureAssessment, type GRCScanResult } from "./engineering"
+import { loadStudentModel } from "./student-model"
+import { loadCompetency, renderEngineeringCompetency, getEngineeringAverage } from "./competency"
 
 export interface CoachContext {
   projectDir: string
@@ -171,6 +172,182 @@ function getProgress(projectDir: string): ProgressData {
   )
 }
 
-function progressPath(projectDir: string): string {
-  return join(projectDir, ".codingschool", "progress.json")
+export function handleCodeReview(
+  projectDir: string,
+  code: string,
+  context?: string,
+): CoachResponse {
+  const result = reviewCode(projectDir, code, context)
+  updateEngineeringFromReview(projectDir, result)
+
+  const lines: string[] = []
+  lines.push(`## Code Review — Score: ${result.score}/100`)
+  lines.push("")
+  lines.push(result.overallFeedback)
+  lines.push("")
+
+  if (result.strengths.length > 0) {
+    lines.push("**Strengths:**")
+    for (const s of result.strengths) lines.push(`- ${s}`)
+    lines.push("")
+  }
+  if (result.improvements.length > 0) {
+    lines.push("**Improvements:**")
+    for (const i of result.improvements) lines.push(`- ${i}`)
+    lines.push("")
+  }
+  if (result.grcFlags.length > 0) {
+    lines.push("**GRC Flags:**")
+    for (const g of result.grcFlags) lines.push(`- ${g}`)
+    lines.push("")
+  }
+
+  lines.push(renderEngineeringCompetency(projectDir))
+
+  return {
+    message: lines.join("\n"),
+    intent: "complete-task",
+  }
+}
+
+export function handleArchitectureReview(
+  projectDir: string,
+  description: string,
+  patterns?: string,
+): CoachResponse {
+  const result = assessArchitecture(description, patterns)
+
+  const lines: string[] = []
+  lines.push("## Architecture Assessment")
+  lines.push("")
+  lines.push(`Risk Level: **${result.riskLevel}**`)
+  lines.push("")
+
+  if (result.strengths.length > 0) {
+    lines.push("**Strengths:**")
+    for (const s of result.strengths) lines.push(`- ${s}`)
+    lines.push("")
+  }
+  if (result.concerns.length > 0) {
+    lines.push("**Concerns:**")
+    for (const c of result.concerns) lines.push(`- ${c}`)
+    lines.push("")
+  }
+  if (result.suggestions.length > 0) {
+    lines.push("**Suggestions:**")
+    for (const s of result.suggestions) lines.push(`- ${s}`)
+  }
+
+  return {
+    message: lines.join("\n"),
+    intent: "complete-task",
+  }
+}
+
+export function handleGRCScan(
+  projectDir: string,
+  code: string,
+  context?: string,
+): CoachResponse {
+  const result = scanGRC(code, context)
+
+  const lines: string[] = []
+  lines.push("## GRC Security Scan")
+  lines.push("")
+  lines.push(`Overall Risk: **${result.overallRisk}**`)
+  lines.push("")
+
+  if (result.governanceIssues.length > 0) {
+    lines.push("**Governance Issues:**")
+    for (const g of result.governanceIssues) lines.push(`- ${g}`)
+    lines.push("")
+  }
+  if (result.riskItems.length > 0) {
+    lines.push("**Risk Items:**")
+    for (const r of result.riskItems) lines.push(`- ${r}`)
+    lines.push("")
+  }
+  if (result.complianceNotes.length > 0) {
+    lines.push("**Compliance Notes:**")
+    for (const c of result.complianceNotes) lines.push(`- ${c}`)
+  }
+
+  if (result.overallRisk === "high") {
+    lines.push("")
+    lines.push("**Action Required:** Address these issues before proceeding.")
+  }
+
+  return {
+    message: lines.join("\n"),
+    intent: "complete-task",
+  }
+}
+
+export function handleMentoringPlan(
+  projectDir: string,
+  topic: string,
+): CoachResponse {
+  const plan = generateMentoringPlan(projectDir, topic)
+  return {
+    message: plan,
+    intent: "complete-task",
+  }
+}
+
+export function handleEngineeringStatus(projectDir: string): CoachResponse {
+  const avg = getEngineeringAverage(projectDir)
+  const competency = renderEngineeringCompetency(projectDir)
+
+  const lines: string[] = []
+  lines.push("## Engineering Competency Status")
+  lines.push("")
+  lines.push(`**Overall Average:** ${avg}/100`)
+  lines.push("")
+  lines.push(competency)
+
+  return {
+    message: lines.join("\n"),
+    intent: "status-check",
+  }
+}
+
+export function handleProjectMentoring(
+  projectDir: string,
+  request: string,
+): CoachResponse {
+  const lower = request.toLowerCase()
+
+  if (/review.*code|code.*review|review.*pr|pr.*review/i.test(lower)) {
+    return {
+      message: "Please share the code you'd like me to review. I'll analyze it for quality, security, and engineering best practices.",
+      intent: "complete-task",
+    }
+  }
+
+  if (/architecture|design|system|structure/i.test(lower)) {
+    return {
+      message: "Describe your system architecture or design. I'll assess it for scalability, maintainability, and potential risks.",
+      intent: "complete-task",
+    }
+  }
+
+  if (/security|grc|compliance|vulnerability|scan/i.test(lower)) {
+    return {
+      message: "Share the code or describe your security concerns. I'll scan for GRC issues and OWASP Top 10 vulnerabilities.",
+      intent: "complete-task",
+    }
+  }
+
+  if (/mentoring|plan|progress|competency|status/i.test(lower)) {
+    const plan = generateMentoringPlan(projectDir, "general")
+    return {
+      message: plan,
+      intent: "status-check",
+    }
+  }
+
+  return {
+    message: `I can help you with:\n\n- **Code Review** — Share code for quality/security analysis\n- **Architecture Review** — Describe your design for assessment\n- **GRC Scan** — Scan code for governance/risk/compliance issues\n- **Mentoring Plan** — Get a personalized engineering growth plan\n\nWhat would you like to focus on?`,
+    intent: "complete-task",
+  }
 }
