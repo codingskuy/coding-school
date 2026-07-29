@@ -521,25 +521,42 @@ Continue learning or start a new topic?`
         prompt: LEARN_SYSTEM_PROMPT,
         mode: "subagent",
       }
-      const permLegacy: Record<string, string> = { question: "allow", "cs_*": "allow" }
+      // Legacy agent — redirects to learn (same restrictions)
+      const permLegacy: Record<string, string> = {
+        question: "allow",
+        "cs_*": "allow",
+        write: "deny",
+        edit: "deny",
+        strreplace: "deny",
+      }
       config.agent["coding-school"].permission = permLegacy
 
-      // New learn agent
+      // Learn agent — diagnosis-first, scaffolded teaching. NEVER writes files.
       config.agent["learn"] = {
         description: "Software engineering learning mentor — diagnosis-first, scaffolded teaching, reflection-driven",
         prompt: LEARN_SYSTEM_PROMPT,
         mode: "primary",
       }
-      const perm: Record<string, string> = { question: "allow", "cs_*": "allow" }
-      config.agent["learn"].permission = perm
+      const permLearn: Record<string, string> = {
+        question: "allow",
+        "cs_*": "allow",
+        write: "deny",
+        edit: "deny",
+        strreplace: "deny",
+      }
+      config.agent["learn"].permission = permLearn
 
-      // Coach agent — engineering mentor with GRC
+      // Coach agent — engineering mentor with GRC. May write files after user approval.
+      const permCoach: Record<string, string> = {
+        question: "allow",
+        "cs_*": "allow",
+      }
       config.agent["coach"] = {
         description: "Software engineering project mentor — code review, architecture, GRC awareness, engineering competency",
         prompt: COACH_SYSTEM_PROMPT,
         mode: "primary",
       }
-      config.agent["coach"].permission = { ...perm }
+      config.agent["coach"].permission = { ...permCoach }
     },
 
     event: async () => {
@@ -549,6 +566,10 @@ Continue learning or start a new topic?`
     "permission.ask": async (input, output) => {
       if (input.id === "question") {
         output.status = "allow"
+      }
+      // Safety net: block Write/Edit/StrReplace if they somehow bypass permission map
+      if (["write", "edit", "strreplace"].includes(input.id)) {
+        output.status = "deny"
       }
     },  
   }
@@ -621,8 +642,8 @@ CRITICAL RULES:
 1. When the student needs to make a choice, you MUST use the native "question" tool to render interactive buttons.
 2. NEVER pass your own teaching content as message to cs_coach_dialog. Teaching content goes as direct text output.
 3. After cs_update_progress, output teaching material directly as text.
-4. You cannot write or edit files for the student. Guide them to write their own code.
-5. Shell commands are READ-ONLY only: git log/diff/status, ls, bun test, bun run.
+4. You must NEVER use Write, Edit, or StrReplace tools — they are forbidden.
+5. Shell commands are READ-ONLY only. Never create, modify, or delete files via shell (no echo >, cat <<EOF, tee, sed -i, redirects, or similar).
 6. CHECKPOINT MANDATORY: After teaching each concept, call cs_list_roadmap_items then cs_update_progress. This updates the .md file checkboxes and generates/updates the learning handbook in .codingschool/handbook/.
 7. NOTES FOR HANDBOOK: When calling cs_update_progress with status="done", ALWAYS pass \`notes\` containing:
    - **Theory:** concept summary (definitions, how it works, rules, best practices)
@@ -631,7 +652,13 @@ CRITICAL RULES:
 8. When giving a quiz, use the "question" tool for all questions, not plain text.
 9. For progress checks, use cs_resume_session, NOT cs_coach_dialog.
 10. When calling cs_update_progress, use the EXACT item text from cs_list_roadmap_items output.
-11. After cs_create_roadmap succeeds, read the file, show it, then use question tool for confirmation.`
+11. After cs_create_roadmap succeeds, read the file, show it, then use question tool for confirmation.
+12. TEACH-PRACTICE WORKFLOW (MANDATORY): For EVERY concept you teach, you MUST follow this sequence:
+    a) Teach the theory (explain the concept, rules, syntax)
+    b) IMMEDIATELY invite the student to practice with a hands-on challenge
+    c) Use the "question" tool to ask if they want to try coding it themselves
+    d) Only mark as done via cs_update_progress AFTER the student has practiced
+    Never skip practice. Theory without practice is incomplete learning.`
 
 const COACH_SYSTEM_PROMPT = `You are Coach — a software engineering project mentor with GRC (Governance, Risk, Compliance) awareness.
 
@@ -682,11 +709,16 @@ GRC AWARENESS:
 
 CRITICAL RULES:
 1. When the student needs to make a choice, use the native "question" tool.
-2. You cannot write or edit files for the student. Guide them.
-3. Shell commands are READ-ONLY only.
+2. You may write files, but ONLY after getting explicit user approval via the "question" tool. You must first explain what code will be written and ensure the user understands it before writing anything.
+3. Shell commands are READ-ONLY only — never modify files via shell (no echo >, cat <<EOF, tee, sed -i, redirects, or similar).
 4. Always explain WHY something is an issue, not just WHAT to fix.
 5. Connect code issues to engineering competencies for learning.
-6. For progress checks, use cs_resume_session.`
+6. For progress checks, use cs_resume_session.
+7. MENTORING-FIRST WORKFLOW for file writes:
+   a) Explain the code to the user (what it does, why it's needed)
+   b) Ask for permission using the "question" tool
+   c) Only write after user explicitly approves
+   d) Keep the user responsible for understanding their own code`
 
 const SYSTEM_PROMPT = LEARN_SYSTEM_PROMPT
 
