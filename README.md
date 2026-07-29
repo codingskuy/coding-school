@@ -14,8 +14,8 @@
 
 ---
 
-✨ **Kami berbahagia — CodingSchool telah mencapai 1.000 instalasi oleh student!**  
-*Terima kasih atas kepercayaan dan semangat belajarnya. 🚀*
+✨ **We're thrilled — CodingSchool has reached 1,000 student installs!**  
+*Thank you for your trust and learning spirit. 🚀*
 
 ---
 
@@ -147,7 +147,7 @@ npx @codingskuy/coding-school setup
 | `cs_reflect` | Session reflection prompts | End of session |
 | `cs_list_roadmap_items` | List roadmap items + checkboxes | Before progress update |
 | `cs_create_roadmap` | Generate learning roadmap | New topic setup |
-| `cs_update_progress` | Mark items done, award XP, append narrative notes to learning handbook. Pass `notes` (Teori + Praktik) to build a permanent learning journal | After each concept |
+| `cs_update_progress` | Mark items done, award XP, append narrative notes to learning handbook. Pass `notes` (Theory + Practice) to build a permanent learning journal | After each concept |
 | `cs_assess_quiz` | Bloom's taxonomy rubric | Quiz time |
 | `cs_resume_session` | Load last checkpoint | Session start |
 
@@ -188,32 +188,32 @@ Each entry in the handbook is a **narrative learning journal** written by the AI
 
 - Date and time of the session
 - Material covered (roadmap item name)
-- **Teori** — concise summary of concepts learned (definitions, rules, best practices)
-- **Praktik** — code examples, implementation steps, output
+- **Theory** — concise summary of concepts learned (definitions, rules, best practices)
+- **Practice** — code examples, implementation steps, output
 - Progress percentage
 
 Example entry:
 ```
 ## 2026-07-29 14:30:00
 
-**Materi:** Variables & Data Types
+**Topic:** Variables & Data Types
 
-**Teori:**
-Variabel adalah wadah untuk menyimpan data dalam program.
-Tipe data menentukan jenis nilai yang bisa disimpan:
-- `int` — bilangan bulat
-- `String` — teks
+**Theory:**
+Variables are containers for storing data in a program.
+Data types determine the kind of value that can be stored:
+- `int` — whole numbers
+- `String` — text
 - `boolean` — true/false
 
-**Praktik:**
+**Practice:**
 ```java
 int age = 25;
 String name = "Andi";
-System.out.println(name + " berusia " + age + " tahun");
+System.out.println(name + " is " + age + " years old");
 ```
-Output: `Andi berusia 25 tahun`
+Output: `Andi is 25 years old`
 
-**Progress:** 60% selesai
+**Progress:** 60% complete
 ```
 
 Students can open these markdown files directly to review their complete learning journey.
