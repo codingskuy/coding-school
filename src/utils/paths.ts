@@ -70,6 +70,18 @@ export function readProfile(projectDir: string): string | null {
   return readFileSync(p, "utf-8")
 }
 
+export function timelineDir(projectDir: string): string {
+  return join(codingschoolDir(projectDir), "timeline")
+}
+
+export function timelinePath(projectDir: string, projectName: string): string {
+  return join(timelineDir(projectDir), `${slugify(projectName)}.json`)
+}
+
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
+}
+
 export function getLatestSessionDate(projectDir: string): string | null {
   const dir = sessionsDir(projectDir)
   if (!existsSync(dir)) return null

@@ -35,7 +35,8 @@ import { generateReflectionPrompt, processSessionReflection, extractInsights } f
 import { loadStudentModel, saveStudentModel } from "./student-model"
 import { updateTopicCompetency, renderTopicCompetency, renderEngineeringCompetency } from "./competency"
 import { migrate, isMigrationNeeded } from "./migration"
-import type { ProgressData, StudentModel, BloomStage } from "./utils/types"
+import { initTimeline, addTimelineItem, updateTimelineItem, listTimeline, scaffoldProject, listProjects } from "./timeline/generator"
+import type { ProgressData, StudentModel, BloomStage, TimelineStatus } from "./utils/types"
 import type { HintLevel } from "./scaffolding"
 
 function extractTopic(message: string): string {
@@ -510,6 +511,107 @@ Continue learning or start a new topic?`
           return result.message
         },
       }),
+
+      // ════════════════════════════════════════════
+      // Timeline Tools — Project Guide
+      // ════════════════════════════════════════════
+
+      cs_timeline_init: tool({
+        description: "Initialize a new project timeline with milestones. Starts project planning phase.",
+        args: {
+          projectName: tool.schema.string(),
+          description: tool.schema.string(),
+          techStack: tool.schema.string(),
+          milestones: tool.schema.string(),
+        },
+        async execute(args) {
+          let milestones: Array<{ name: string }> = []
+          try {
+            milestones = JSON.parse(args.milestones)
+          } catch {
+            return "milestones must be a JSON array of { name: string } objects."
+          }
+          const techStack = args.techStack.split(",").map(s => s.trim()).filter(Boolean)
+          return initTimeline({
+            projectDir,
+            projectName: args.projectName,
+            description: args.description,
+            techStack,
+            milestones,
+          })
+        },
+      }),
+
+      cs_timeline_add: tool({
+        description: "Add a milestone, sprint, epic, or task to an existing timeline. For sprints/epics/tasks, provide parentName.",
+        args: {
+          projectName: tool.schema.string(),
+          type: tool.schema.enum(["milestone", "sprint", "epic", "task"]),
+          name: tool.schema.string(),
+          parentName: tool.schema.string().optional(),
+          notes: tool.schema.string().optional(),
+        },
+        async execute(args) {
+          return addTimelineItem({
+            projectDir,
+            projectName: args.projectName,
+            type: args.type,
+            name: args.name,
+            parentName: args.parentName,
+            notes: args.notes,
+          })
+        },
+      }),
+
+      cs_timeline_update: tool({
+        description: "Update the status of any timeline item (milestone/sprint/epic/task). Status: todo, in-progress, done, blocked.",
+        args: {
+          projectName: tool.schema.string(),
+          itemName: tool.schema.string(),
+          status: tool.schema.enum(["todo", "in-progress", "done", "blocked"]),
+          notes: tool.schema.string().optional(),
+        },
+        async execute(args) {
+          return updateTimelineItem({
+            projectDir,
+            projectName: args.projectName,
+            itemName: args.itemName,
+            status: args.status as TimelineStatus,
+            notes: args.notes,
+          })
+        },
+      }),
+
+      cs_timeline_list: tool({
+        description: "Show the full project timeline with milestones, sprints, epics, tasks, and their statuses.",
+        args: {
+          projectName: tool.schema.string(),
+        },
+        async execute(args) {
+          return listTimeline(projectDir, args.projectName)
+        },
+      }),
+
+      cs_project_scaffold: tool({
+        description: "Generate the project folder structure after user approval. Structure must be a JSON object representing folders and files.",
+        args: {
+          projectName: tool.schema.string(),
+          structure: tool.schema.string(),
+        },
+        async execute(args) {
+          let structure: Record<string, any> = {}
+          try {
+            structure = JSON.parse(args.structure)
+          } catch {
+            return "structure must be a valid JSON object."
+          }
+          return scaffoldProject({
+            projectDir,
+            projectName: args.projectName,
+            structure,
+          })
+        },
+      }),
     },
 
     config: async (config) => {
@@ -660,11 +762,17 @@ CRITICAL RULES:
     d) Only mark as done via cs_update_progress AFTER the student has practiced
     Never skip practice. Theory without practice is incomplete learning.`
 
-const COACH_SYSTEM_PROMPT = `You are Coach — a software engineering project mentor with GRC (Governance, Risk, Compliance) awareness.
+const COACH_SYSTEM_PROMPT = `You are Coach — a software engineering project mentor & guide with GRC (Governance, Risk, Compliance) awareness. You guide users through real-industry project development from planning to completion.
 
-Your philosophy: "Every code review is a teaching moment. Every architecture decision has trade-offs."
+Your philosophy: "Guide first, code second. Every feature is a teaching moment."
+
+PHASES:
+- PLANNING: Init project timeline, define milestones/sprints/epics/tasks, assess architecture
+- FEATURE GUIDANCE: Per-feature explain → user codes → Coach reviews → update timeline
+- REVIEW & ITERATE: Code review, GRC scan, engineering competency updates, timeline tracking
 
 AVAILABLE TOOLS:
+=== Existing Tools ===
 - cs_code_review: Review code for quality, security, and engineering best practices. Updates engineering competency automatically.
 - cs_architecture_review: Assess system design for scalability, maintainability, and risks.
 - cs_grc_scan: Scan code for governance, risk, and compliance issues (OWASP Top 10).
@@ -676,6 +784,13 @@ AVAILABLE TOOLS:
 - cs_assess_quiz: Evaluate answers with a 5-dimension rubric.
 - cs_resume_session: Resume the last checkpoint.
 
+=== Timeline & Project Tools ===
+- cs_timeline_init: Initialize a new project timeline with milestones. Call FIRST for any new project.
+- cs_timeline_add: Add milestones, sprints, epics, or tasks to an existing timeline.
+- cs_timeline_update: Update the status of any item (todo, in-progress, done, blocked) with optional notes.
+- cs_timeline_list: Show the full project timeline tree with all statuses and progress.
+- cs_project_scaffold: Generate folder structure. Only call AFTER user approval.
+
 8 ENGINEERING COMPETENCIES:
 1. Code Quality — naming, structure, DRY, clean code
 2. System Design — architecture patterns, scalability, trade-offs
@@ -686,12 +801,31 @@ AVAILABLE TOOLS:
 7. Collaboration — code review, pair programming, communication
 8. GRC Awareness — security, compliance, risk assessment
 
-PROJECT MENTORING WORKFLOW:
-1. When the student shares code, call cs_code_review
-2. When discussing architecture, call cs_architecture_review
-3. When security is mentioned, call cs_grc_scan
-4. Periodically call cs_mentoring_plan to show growth areas
-5. Use cs_engineering_status to show overall progress
+=== PROJECT GUIDE WORKFLOW (MANDATORY) ===
+
+PHASE 1 — PROJECT PLANNING:
+1. User mentions a project idea → use "question" tool to gather: project name, description, tech stack, milestones
+2. Call cs_architecture_review to assess the initial design
+3. After user approves the plan, call cs_timeline_init to create the timeline
+4. Call cs_timeline_add to add sprints under milestones, then epics under sprints
+5. Call cs_timeline_list to show the full plan to the user
+6. If user agrees on structure, use "question" tool to ask if they want scaffolding
+7. If yes, call cs_project_scaffold ONLY after user explicitly approves the structure
+
+PHASE 2 — FEATURE GUIDANCE (per sprint/epic):
+1. Pick the next todo item from cs_timeline_list
+2. Explain the approach: architecture, key concepts, code structure
+3. Use "question" tool to ask if the user wants to start coding
+4. User codes independently (you NEVER write code for them without permission)
+5. When user shares code, call cs_code_review and/or cs_grc_scan
+6. Call cs_timeline_update to mark item done/in-progress/blocked with notes
+7. Call cs_timeline_list to show updated progress
+8. Repeat for next item
+
+PHASE 3 — REVIEW & ITERATE:
+1. After each feature: cs_code_review → cs_grc_scan → cs_timeline_update
+2. Periodically call cs_mentoring_plan and cs_engineering_status
+3. When milestone complete, review the milestone with user
 
 CODE REVIEW RULES:
 - Always provide specific, actionable feedback
@@ -708,17 +842,21 @@ GRC AWARENESS:
 - Verify error handling doesn't leak sensitive information
 
 CRITICAL RULES:
-1. When the student needs to make a choice, use the native "question" tool.
-2. You may write files, but ONLY after getting explicit user approval via the "question" tool. You must first explain what code will be written and ensure the user understands it before writing anything.
-3. Shell commands are READ-ONLY only — never modify files via shell (no echo >, cat <<EOF, tee, sed -i, redirects, or similar).
-4. Always explain WHY something is an issue, not just WHAT to fix.
-5. Connect code issues to engineering competencies for learning.
-6. For progress checks, use cs_resume_session.
-7. MENTORING-FIRST WORKFLOW for file writes:
-   a) Explain the code to the user (what it does, why it's needed)
-   b) Ask for permission using the "question" tool
-   c) Only write after user explicitly approves
-   d) Keep the user responsible for understanding their own code`
+1. You must NEVER write or edit files without FIRST explaining the code to the user and getting explicit approval via the "question" tool.
+2. The PROJECT GUIDE WORKFLOW is MANDATORY. You MUST follow Planning → Feature Guidance → Review in order. Never skip phases.
+3. You MUST call cs_timeline_init BEFORE starting any project work. Never start coding without an initialized timeline.
+4. After EVERY feature or change, call cs_timeline_update to keep the timeline accurate.
+5. Call cs_timeline_list at each phase boundary (after planning, after each feature, after milestone complete) to show progress.
+6. Shell commands are READ-ONLY only — never modify files via shell (no echo >, cat <<EOF, tee, sed -i, redirects, or similar).
+7. Always explain WHY something is an issue, not just WHAT to fix.
+8. Connect code issues to engineering competencies for learning.
+9. For progress checks, use cs_resume_session.
+10. If blocked, mark the item as "blocked" in cs_timeline_update with notes explaining why, then ask the user how to proceed.
+11. MENTORING-FIRST WORKFLOW for file writes:
+    a) Explain the code to the user (what it does, why it's needed)
+    b) Ask for permission using the "question" tool
+    c) Only write after user explicitly approves
+    d) Keep the user responsible for understanding their own code`
 
 const SYSTEM_PROMPT = LEARN_SYSTEM_PROMPT
 

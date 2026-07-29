@@ -168,3 +168,44 @@ export type CoachState =
   | "advance"
 
 export type CoachMode = "learn" | "coach"
+
+// ──────────────────────────────────────────────
+// Timeline — Project Guide
+// ──────────────────────────────────────────────
+
+export interface TimelineData {
+  projectName: string
+  description: string
+  techStack: string[]
+  milestones: Milestone[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Milestone {
+  name: string
+  status: TimelineStatus
+  sprints: Sprint[]
+}
+
+export interface Sprint {
+  name: string
+  status: TimelineStatus
+  epics: Epic[]
+}
+
+export interface Epic {
+  name: string
+  status: TimelineStatus
+  tasks: Task[]
+}
+
+export interface Task {
+  name: string
+  status: TimelineStatus
+  notes?: string
+}
+
+export type TimelineStatus = "todo" | "in-progress" | "done" | "blocked"
+
+export type TimelineItemType = "milestone" | "sprint" | "epic" | "task"
