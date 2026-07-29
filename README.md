@@ -138,7 +138,7 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 | `cs_reflect` | Session reflection prompts | End of session |
 | `cs_list_roadmap_items` | List roadmap items + checkboxes | Before progress update |
 | `cs_create_roadmap` | Generate learning roadmap | New topic setup |
-| `cs_update_progress` | Mark items done, award XP | After each concept |
+| `cs_update_progress` | Mark items done, award XP, append narrative notes to learning handbook. Pass `notes` (Teori + Praktik) to build a permanent learning journal | After each concept |
 | `cs_assess_quiz` | Bloom's taxonomy rubric | Quiz time |
 | `cs_resume_session` | Load last checkpoint | Session start |
 
@@ -152,6 +152,57 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 | `cs_mentoring_plan` | Personalized growth plan | Periodic check-in |
 | `cs_engineering_status` | 8-dimension competency view | Progress review |
 | `cs_coach_dialog` | Conversation interface | Legacy compatibility |
+
+---
+
+## 📖 Learning Handbook
+
+Every time progress is recorded via `cs_update_progress`, a **learning handbook** is automatically generated in `.codingschool/handbook/`.
+
+### Structure
+
+```
+.codingschool/handbook/
+├── index.md              # Master index with links to all topics
+└── java-programming.md   # Per-topic handbook
+└── typescript.md         # (one per topic with progress)
+```
+
+### Per-Topic Handbook Contains
+
+Each entry in the handbook is a **narrative learning journal** written by the AI mentor:
+
+- Date and time of the session
+- Material covered (roadmap item name)
+- **Teori** — concise summary of concepts learned (definitions, rules, best practices)
+- **Praktik** — code examples, implementation steps, output
+- Progress percentage
+
+Example entry:
+```
+## 2026-07-29 14:30:00
+
+**Materi:** Variables & Data Types
+
+**Teori:**
+Variabel adalah wadah untuk menyimpan data dalam program.
+Tipe data menentukan jenis nilai yang bisa disimpan:
+- `int` — bilangan bulat
+- `String` — teks
+- `boolean` — true/false
+
+**Praktik:**
+```java
+int age = 25;
+String name = "Andi";
+System.out.println(name + " berusia " + age + " tahun");
+```
+Output: `Andi berusia 25 tahun`
+
+**Progress:** 60% selesai
+```
+
+Students can open these markdown files directly to review their complete learning journey.
 
 ---
 
@@ -223,7 +274,10 @@ The agent **adapts** to the student in real-time:
 ├── student-model.json    # Global student profile (cross-project)
 ├── competency.json       # Per-topic: knowledge/implementation/debugging/teaching
 ├── engineering.json      # 8-dimension engineering competency
-├── progress.json         # Legacy XP + level (backward compatible)
+├── progress.json         # XP, level, per-topic progress
+├── handbook/             # Auto-generated learning handbook
+│   ├── index.md           # Master index of all topics
+│   └── <topic>.md         # Per-topic handbook (progress, completed items, XP)
 ├── roadmap/
 │   ├── java/
 │   │   └── beginner.md   # Checklist-style roadmap

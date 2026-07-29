@@ -25,6 +25,7 @@ import { assessQuiz, renderAssessment, saveAssessment } from "./assessment/engin
 import { resumeSession, createOrUpdateSession, getLatestSessionInfo } from "./session/resume"
 import { isProfileExists } from "./utils/paths"
 import { updateChecklistInFile } from "./utils/fs"
+import { generateHandbook } from "./handbook/generator"
 import { existsSync, readdirSync } from "fs"
 
 import { progressPath } from "./utils/paths"
@@ -160,6 +161,7 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
           topic: tool.schema.string(),
           item: tool.schema.string(),
           status: tool.schema.enum(["done", "skipped", "in-progress"]),
+          notes: tool.schema.string().optional(),
         },
         async execute(args) {
           if (!args.topic || !args.item) {
@@ -180,7 +182,9 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
               }
             }
           }
-          return `Progress updated.\n\n${renderDashboard(progress)}`
+          const notes = args.notes || ""
+          const handbook = generateHandbook(projectDir, args.topic, args.item, notes, progress)
+          return `Progress updated.\n\n${renderDashboard(progress)}\n\nHandbook updated: \`${handbook.topicPath}\``
         },
       }),
 
@@ -577,7 +581,9 @@ Example:
 - You teach "Variables & Data Types"
 - Call cs_list_roadmap_items(topic="java programming")
 - Find "Variables & Data Types" in the output
-- Call cs_update_progress(topic="java programming", item="Variables & Data Types", status="done")
+- Call cs_update_progress with notes:
+  topic="java programming", item="Variables & Data Types", status="done",
+  notes="**Teori:**\nVariabel adalah wadah untuk menyimpan data. Tipe data: int, String, boolean.\n\n**Praktik:**\nint age = 25;\nString name = \"Andi\";"
 
 DIAGNOSIS-FIRST WORKFLOW:
 1. When a student wants to learn a topic, call cs_diagnose_student FIRST
@@ -617,11 +623,15 @@ CRITICAL RULES:
 3. After cs_update_progress, output teaching material directly as text.
 4. You cannot write or edit files for the student. Guide them to write their own code.
 5. Shell commands are READ-ONLY only: git log/diff/status, ls, bun test, bun run.
-6. CHECKPOINT MANDATORY: After teaching each concept, call cs_list_roadmap_items then cs_update_progress. This updates the .md file checkboxes.
-7. When giving a quiz, use the "question" tool for all questions, not plain text.
-8. For progress checks, use cs_resume_session, NOT cs_coach_dialog.
-9. When calling cs_update_progress, use the EXACT item text from cs_list_roadmap_items output.
-10. After cs_create_roadmap succeeds, read the file, show it, then use question tool for confirmation.`
+6. CHECKPOINT MANDATORY: After teaching each concept, call cs_list_roadmap_items then cs_update_progress. This updates the .md file checkboxes and generates/updates the learning handbook in .codingschool/handbook/.
+7. NOTES FOR HANDBOOK: When calling cs_update_progress with status="done", ALWAYS pass \`notes\` containing:
+   - **Teori:** ringkasan konsep yang diajarkan (definisi, cara kerja, aturan)
+   - **Praktik:** contoh kode, langkah implementasi, hasil/output
+   These notes become the student's permanent learning journal for future reference.
+8. When giving a quiz, use the "question" tool for all questions, not plain text.
+9. For progress checks, use cs_resume_session, NOT cs_coach_dialog.
+10. When calling cs_update_progress, use the EXACT item text from cs_list_roadmap_items output.
+11. After cs_create_roadmap succeeds, read the file, show it, then use question tool for confirmation.`
 
 const COACH_SYSTEM_PROMPT = `You are Coach — a software engineering project mentor with GRC (Governance, Risk, Compliance) awareness.
 
