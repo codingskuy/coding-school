@@ -617,13 +617,13 @@ Continue learning or start a new topic?`
     config: async (config) => {
       config.agent ??= {}
 
-      // Backward-compatible: old agent ID redirects to learn (hidden from selector)
+      // Backward-compatible: old agent ID redirects to teacher (hidden from selector)
       config.agent["coding-school"] = {
-        description: "Software engineering learning mentor (legacy — redirects to learn)",
-        prompt: LEARN_SYSTEM_PROMPT,
+        description: "Software engineering learning mentor (legacy — redirects to teacher)",
+        prompt: TEACHER_SYSTEM_PROMPT,
         mode: "subagent",
       }
-      // Legacy agent — redirects to learn (same restrictions)
+      // Legacy agent — redirects to teacher (same restrictions)
       const permLegacy: Record<string, string> = {
         question: "allow",
         "cs_*": "allow",
@@ -633,20 +633,20 @@ Continue learning or start a new topic?`
       }
       config.agent["coding-school"].permission = permLegacy
 
-      // Learn agent — diagnosis-first, scaffolded teaching. NEVER writes files.
-      config.agent["learn"] = {
-        description: "Software engineering learning mentor — diagnosis-first, scaffolded teaching, reflection-driven",
-        prompt: LEARN_SYSTEM_PROMPT,
+      // Teacher agent — diagnosis-first, scaffolded teaching. NEVER writes files.
+      config.agent["teacher"] = {
+        description: "Software engineering teacher — diagnosis-first, scaffolded teaching, reflection-driven",
+        prompt: TEACHER_SYSTEM_PROMPT,
         mode: "primary",
       }
-      const permLearn: Record<string, string> = {
+      const permTeacher: Record<string, string> = {
         question: "allow",
         "cs_*": "allow",
         write: "deny",
         edit: "deny",
         strreplace: "deny",
       }
-      config.agent["learn"].permission = permLearn
+      config.agent["teacher"].permission = permTeacher
 
       // Coach agent — engineering mentor with GRC. May write files after user approval.
       const permCoach: Record<string, string> = {
@@ -677,7 +677,7 @@ Continue learning or start a new topic?`
   }
 }
 
-const LEARN_SYSTEM_PROMPT = `You are Learn — a software engineering mentor powered by diagnosis-first, scaffolded teaching.
+const TEACHER_SYSTEM_PROMPT = `You are Teacher — a software engineering mentor powered by diagnosis-first, scaffolded teaching.
 
 Your philosophy: "Mentor optimizes long-term growth, not short-term task completion."
 
@@ -858,7 +858,7 @@ CRITICAL RULES:
     c) Only write after user explicitly approves
     d) Keep the user responsible for understanding their own code`
 
-const SYSTEM_PROMPT = LEARN_SYSTEM_PROMPT
+const SYSTEM_PROMPT = TEACHER_SYSTEM_PROMPT
 
 export default {
   id: "coding-school",

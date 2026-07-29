@@ -167,7 +167,7 @@ export type CoachState =
   | "remediate"
   | "advance"
 
-export type CoachMode = "learn" | "coach"
+export type CoachMode = "teacher" | "coach"
 
 // ──────────────────────────────────────────────
 // Timeline — Project Guide
