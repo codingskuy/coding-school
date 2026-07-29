@@ -6,10 +6,16 @@
 
 **Two agents. One mission. Real understanding.**
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/codingskuy/codingschool)
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/codingskuy/codingschool)
+[![Installs](https://img.shields.io/badge/installs-1,000-brightgreen?logo=npm)](https://www.npmjs.com/package/@codingskuy/coding-school)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Tests](https://img.shields.io/badge/tests-200%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-221%20passing-brightgreen.svg)](#development)
 [![OpenCode](https://img.shields.io/badge/OpenCode-v0.7+-purple.svg)](https://opencode.ai)
+
+---
+
+✨ **Kami berbahagia — CodingSchool telah mencapai 1.000 instalasi oleh student!**  
+*Terima kasih atas kepercayaan dan semangat belajarnya. 🚀*
 
 ---
 
@@ -21,32 +27,30 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 
 ---
 
-## ✨ What's New in v2.0
+## ✨ What's New in v2.1
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  v2.0 — The Mentor Rewrite                                      │
+│  v2.1 — The Installer & Project Timeline                        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  🧠 DUAL-AGENT SYSTEM          📊 COMPETENCY TRACKING          │
-│  ┌───────────┐  ┌──────────┐   ┌──────────────────────────┐   │
-│  │   LEARN   │  │  COACH   │   │  ★★★★★  5-Star Ratings   │   │
-│  │  Student  │  │ Project  │   │  4 Dimensions + 8 Eng.   │   │
-│  │  Mentor   │  │ Mentor   │   │  Per-Topic Scoring       │   │
-│  └───────────┘  └──────────┘   └──────────────────────────┘   │
-│                                                                 │
-│  🔬 DIAGNOSIS-FIRST            🪜 SCAFFOLDING                  │
+│  📦 ONE-COMMAND INSTALL          🗺️ COACH TIMELINE              │
 │  ┌──────────────────────────┐   ┌──────────────────────────┐   │
-│  │  Level 1: Socratic Q's   │   │  Question → Nudge →      │   │
-│  │  Level 2: Guided Practice│   │  Analogy → Pseudocode →  │   │
-│  │  Level 3: Build Projects │   │  Solution                 │   │
+│  │  npm i @codingskuy/      │   │  Milestones → Sprints →  │   │
+│  │  coding-school            │   │  Epics → Tasks           │   │
+│  │  npx coding-school setup  │   │  Interactive Planner     │   │
 │  └──────────────────────────┘   └──────────────────────────┘   │
 │                                                                 │
-│  🔒 GRC AWARENESS             🔄 AUTO-MIGRATION                │
+│  🧑‍🏫 AGENTS RENAMED              🚀 PI AGENT (SOON)           │
 │  ┌──────────────────────────┐   ┌──────────────────────────┐   │
-│  │  OWASP Top 10 Scanning   │   │  v1.x → v2.0 Seamless   │   │
-│  │  Secret Detection        │   │  .codingschool/ Auto-    │   │
-│  │  Input Validation        │   │  Upgrade on First Load   │   │
+│  │  LEARN  →  TEACHER       │   │  Architecture review +   │   │
+│  │  (clearer identity)      │   │  Research-backed design  │   │
+│  └──────────────────────────┘   └──────────────────────────┘   │
+│                                                                 │
+│  🔗 1,000 INSTALLS             📦 Zero-dep CLI                 │
+│  ┌──────────────────────────┐   ┌──────────────────────────┐   │
+│  │  Milestone reached!      │   │  Built-in setup wizard   │   │
+│  │  Thank you, students!    │   │  No extra dependencies   │   │
 │  └──────────────────────────┘   └──────────────────────────┘   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -57,17 +61,19 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 ## 🚀 Quick Start
 
 ```bash
-# 1. Add to your opencode.json
-{
-  "plugin": ["@codingskuy/coding-school"]
-}
+# One-command install + setup
+npm i @codingskuy/coding-school
+npx @codingskuy/coding-school setup
 
-# 2. Restart OpenCode
+# Follow the prompts:
+# • Enable Teacher (student mentor)
+# • Enable Coach (project mentor)
+# • Auto-registers in opencode.json plugin[]
 
-# 3. Switch to "Learn" or "Coach" agent in the selector
+# Then restart OpenCode and switch agent in the dropdown.
 ```
 
-**Zero config.** Both agents auto-register with their tools, prompts, and permissions.
+**Zero config needed.** Both agents auto-register with their tools, prompts, and permissions.
 
 > Requires **OpenCode v0.7+** (Plugin V2 API).
 
@@ -75,11 +81,11 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 
 ## 🤖 The Agents
 
-### Learn — Student Mentor
+### Teacher — Student Mentor
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│  🧠 LEARN AGENT                                     │
+│  🧑‍🏫 TEACHER AGENT                                  │
 ├─────────────────────────────────────────────────────┤
 │                                                     │
 │  Philosophy:                                        │
@@ -112,10 +118,13 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 │   Every architecture decision has trade-offs."      │
 │                                                     │
 │  ┌─────────────┐  ┌─────────────┐  ┌────────────┐ │
-│  │  Code       │  │  Arch       │  │  GRC       │ │
-│  │  Review     │→ │  Review     │→ │  Scan      │ │
+│  │  Timeline   │  │  Code       │  │  Arch      │ │
+│  │  Planning   │→ │  Review     │→ │  Review    │ │
 │  └─────────────┘  └─────────────┘  └────────────┘ │
 │                                                     │
+│  Workflow: Planning → Feature Guidance → Review     │
+│                                                     │
+│  ✅ Guides project planning with milestones/sprints │
 │  ✅ Flags security issues as CRITICAL               │
 │  ✅ Connects issues to engineering competencies     │
 │  ✅ Tracks growth across 8 dimensions               │
@@ -128,7 +137,7 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 
 ## 🛠️ Tools Reference
 
-### Learn Tools
+### Teacher Tools
 
 | Tool | Description | When to Use |
 |------|-------------|-------------|
@@ -146,6 +155,11 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 
 | Tool | Description | When to Use |
 |------|-------------|-------------|
+| `cs_timeline_init` | Initialize project timeline with milestones | Project kickoff |
+| `cs_timeline_add` | Add epics/sprints/tasks to timeline | During planning |
+| `cs_timeline_update` | Update timeline item status | Progress sync |
+| `cs_timeline_list` | View full project timeline | Status review |
+| `cs_project_scaffold` | Bootstrap project with full timeline, milestones & structure | Starting a new project |
 | `cs_code_review` | Quality, security, best practices | Code shared by student |
 | `cs_architecture_review` | Scalability, trade-offs | Design discussions |
 | `cs_grc_scan` | OWASP, secrets, validation | Security concerns |
@@ -289,9 +303,8 @@ The agent **adapts** to the student in real-time:
 ├── sessions/
 │   ├── 2026-07-19.md
 │   └── 2026-07-20.md
-├── quizzes/
-├── reports/
-└── certificates/
+└── timeline/             # Coach project planning (epics, sprints, milestones)
+    └── <project>.json
 
 ~/.config/opencode/codingschool/
 └── student-model.json    # Global student model (persists across projects)
@@ -301,7 +314,7 @@ The agent **adapts** to the student in real-time:
 
 ---
 
-## 🔄 How It Works
+## 🔄 Learning Flow
 
 ```
   ┌──────────────────────────────────────────────────────────────┐
@@ -339,13 +352,43 @@ The agent **adapts** to the student in real-time:
 
 ---
 
+## 🗺️ Coach Project Flow
+
+```
+  ┌──────────────────────────────────────────────────────────────┐
+  │                  PROJECT GUIDANCE                            │
+  └──────────────────────────────────────────────────────────────┘
+
+  Student: "I want to build a REST API"
+       │
+       ▼
+  ┌──────────────┐
+  │  TIMELINE    │  Init milestones, sprints, epics, tasks
+  │  INIT        │
+  └──────┬───────┘
+         │
+         ▼
+  ┌──────────────┐
+  │  FEATURE     │  Guide implementation with code review
+  │  GUIDANCE    │  + architecture assessment + GRC scan
+  └──────┬───────┘
+         │
+         ▼
+  ┌──────────────┐
+  │  REVIEW &    │  Review diff, update timeline status,
+  │  REFLECT     │  log engineering competency growth
+  └──────────────┘
+```
+
+---
+
 ## 🧪 Development
 
 ```bash
 # Install dependencies
 bun install
 
-# Run all 200 tests
+# Run all 221 tests
 bun test
 
 # Type check
@@ -369,19 +412,47 @@ bun run build:quick
   ├── reflection.test.ts         19 tests
   ├── engineering.test.ts        19 tests
   ├── migration.test.ts          16 tests
+  ├── timeline/generator.test.ts 15 tests
   └── ... (7 more test files)
   ─────────────────────────────
-  Total: 200 tests  ✅ 0 failures
+  Total: 221 tests  ✅ 0 failures
 ```
 
 ---
 
 ## 📜 Changelog
 
+### v2.1.0 — The Installer & Timeline (2026-07-29)
+
+**🎉 1,000 Installs Milestone!**
+
+**📦 New Installer:**
+- One-command setup — `npm i @codingskuy/coding-school` then `npx coding-school setup`
+- Interactive CLI with `opencode.json` auto-config
+- Zero external dependencies (pure Node.js)
+- Post-install welcome banner
+
+**🧑‍🏫 Agent Rename:**
+- `"Learn"` → `"Teacher"` for clearer identity
+- All prompts, types, and tool names updated
+
+**🗺️ Coach Timeline System:**
+- `cs_timeline_init` — initialize project timeline
+- `cs_timeline_add` — add epics, sprints, tasks
+- `cs_timeline_update` — update status
+- `cs_timeline_list` — view full timeline
+- `cs_project_scaffold` — bootstrap project with full structure
+- Coach workflow: Planning → Feature Guidance → Review
+
+**🔧 Improvements:**
+- 221 tests (up from 200)
+- Renamed internal agent ID from `"learn"` to `"teacher"`
+- Type-safe `CoachMode` discriminated union
+
 ### v2.0.0 — The Mentor Rewrite (2026-07-19)
 
 **🚀 New Features:**
-- Dual-agent system: Learn (student mentor) + Coach (project mentor)
+- Dual-agent system: Teacher (student mentor) + Coach (project mentor)
 - Diagnosis-first teaching with misconception detection
 - 5-level scaffolding: question → nudge → analogy → pseudocode → solution
 - Per-topic competency tracking (4 dimensions)
@@ -392,13 +463,13 @@ bun run build:quick
 - Auto-migration from v1.x format
 
 **🔧 Improvements:**
-- 200 tests (up from 184)
+- 200 tests
 - Enhanced TUI sidebar with competency visualization
 - Bilingual content support (English + Indonesian)
 
 **📦 Migration:**
 - Automatic: `.codingschool/progress.json` → `student-model.json` + `competency.json`
-- Backward compatible: old `coding-school` agent still works
+- Backward compatible: legacy agent still works
 
 ### v1.0.4 — Bug Fixes
 - Sidebar checklist counting fix

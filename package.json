@@ -1,8 +1,11 @@
 {
   "name": "@codingskuy/coding-school",
-  "version": "2.0.0",
-  "description": "CodingSchool — Dual-agent AI Engineering Mentor plugin for OpenCode. Learn agent (student diagnosis, scaffolding, competency tracking) + Coach agent (code review, architecture, GRC).",
+  "version": "2.1.0",
+  "description": "CodingSchool — Dual-agent AI Engineering Mentor plugin for OpenCode. Teacher agent (student diagnosis, scaffolding, competency tracking) + Coach agent (code review, architecture, GRC, project timeline).",
   "type": "module",
+  "bin": {
+    "coding-school": "./scripts/cli.mjs"
+  },
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,6 +22,7 @@
   },
   "files": [
     "dist/",
+    "scripts/",
     "README.md",
     "LICENSE.md"
   ],
@@ -30,6 +34,8 @@
     "build:quick": "bun build src/index.ts --outdir dist --external @opencode-ai/plugin --target node",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
+    "postinstall": "node scripts/postinstall.mjs",
+    "setup": "node scripts/cli.mjs setup",
     "prepublishOnly": "bun run build",
     "clean": "rm -rf dist"
   },
