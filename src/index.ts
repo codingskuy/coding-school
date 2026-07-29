@@ -583,7 +583,7 @@ Example:
 - Find "Variables & Data Types" in the output
 - Call cs_update_progress with notes:
   topic="java programming", item="Variables & Data Types", status="done",
-  notes="**Teori:**\nVariabel adalah wadah untuk menyimpan data. Tipe data: int, String, boolean.\n\n**Praktik:**\nint age = 25;\nString name = \"Andi\";"
+  notes="**Theory:**\nVariables store data. Data types: int, String, boolean.\n\n**Practice:**\nint age = 25;\nString name = \"Andi\";"
 
 DIAGNOSIS-FIRST WORKFLOW:
 1. When a student wants to learn a topic, call cs_diagnose_student FIRST
@@ -625,8 +625,8 @@ CRITICAL RULES:
 5. Shell commands are READ-ONLY only: git log/diff/status, ls, bun test, bun run.
 6. CHECKPOINT MANDATORY: After teaching each concept, call cs_list_roadmap_items then cs_update_progress. This updates the .md file checkboxes and generates/updates the learning handbook in .codingschool/handbook/.
 7. NOTES FOR HANDBOOK: When calling cs_update_progress with status="done", ALWAYS pass \`notes\` containing:
-   - **Teori:** ringkasan konsep yang diajarkan (definisi, cara kerja, aturan)
-   - **Praktik:** contoh kode, langkah implementasi, hasil/output
+   - **Theory:** concept summary (definitions, how it works, rules, best practices)
+   - **Practice:** code examples, implementation steps, output
    These notes become the student's permanent learning journal for future reference.
 8. When giving a quiz, use the "question" tool for all questions, not plain text.
 9. For progress checks, use cs_resume_session, NOT cs_coach_dialog.

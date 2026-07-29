@@ -40,9 +40,9 @@ export function appendTopicEntry(
 
   const lines: string[] = []
   if (!previousContent) {
-    lines.push(`# ${tp.name} — Catatan Pembelajaran`)
+    lines.push(`# ${tp.name} — Learning Notes`)
     lines.push("")
-    lines.push("> _Handbook ini mencatat setiap sesi belajar. Setiap entri berisi ringkasan materi teori dan praktik yang telah dipelajari._")
+    lines.push("> _This handbook records each learning session with theory summaries and practice notes._")
     lines.push("")
     lines.push("---")
     lines.push("")
@@ -50,11 +50,11 @@ export function appendTopicEntry(
 
   lines.push(`## ${dateStr} ${timeStr}`)
   lines.push("")
-  lines.push(`**Materi:** ${item}`)
+  lines.push(`**Topic:** ${item}`)
   lines.push("")
   lines.push(notes)
   lines.push("")
-  lines.push(`**Progress:** ${tp.percent}% selesai`)
+  lines.push(`**Progress:** ${tp.percent}% complete`)
   lines.push("")
   lines.push("---")
   lines.push("")
@@ -69,11 +69,11 @@ export function generateIndexHandbook(projectDir: string, progress?: ProgressDat
   const now = new Date().toISOString().split("T")[0]
 
   const lines: string[] = []
-  lines.push("# CodingSchool — Catatan Pembelajaran")
+  lines.push("# CodingSchool — Learning Notes")
   lines.push("")
-  lines.push(`> Diperbarui: ${now}`)
+  lines.push(`> Updated: ${now}`)
   lines.push("")
-  lines.push("## Daftar Topik")
+  lines.push("## Topics")
   lines.push("")
 
   const sorted = Object.entries(data.topics)
@@ -89,13 +89,13 @@ export function generateIndexHandbook(projectDir: string, progress?: ProgressDat
     }
     lines.push("")
   } else {
-    lines.push("_Belum ada topik yang dipelajari._")
+    lines.push("_No topics have been studied yet._")
     lines.push("")
   }
 
   lines.push("---")
   lines.push("")
-  lines.push("_Handbook ini diperbarui secara otomatis setiap kali progress dicatat._")
+  lines.push("_This handbook is automatically updated every time progress is recorded._")
 
   const content = lines.join("\n")
   writeMarkdown(indexHandbookPath(projectDir), content)

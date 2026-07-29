@@ -36,17 +36,17 @@ describe("appendTopicEntry", () => {
   test("creates handbook with narrative entry", () => {
     const dir = mkdtempSync(join(tmpdir(), "handbook-test-"))
     const progress = makeProgress()
-    const notes = "**Teori:**\nVariables store data. Key types: int, String.\n\n**Praktik:**\n`int x = 10;`"
+    const notes = "**Theory:**\nVariables store data. Key types: int, String.\n\n**Practice:**\n`int x = 10;`"
 
     const result = appendTopicEntry(dir, "java programming", "Variables & Data Types", notes, progress)
 
-    expect(result).toContain("# Java Programming — Catatan Pembelajaran")
-    expect(result).toContain("**Materi:** Variables & Data Types")
-    expect(result).toContain("**Teori:**")
+    expect(result).toContain("# Java Programming — Learning Notes")
+    expect(result).toContain("**Topic:** Variables & Data Types")
+    expect(result).toContain("**Theory:**")
     expect(result).toContain("Variables store data")
-    expect(result).toContain("**Praktik:**")
+    expect(result).toContain("**Practice:**")
     expect(result).toContain("`int x = 10;`")
-    expect(result).toContain("**Progress:** 60% selesai")
+    expect(result).toContain("**Progress:** 60% complete")
 
     const filePath = join(codingschoolDir(dir), "handbook", "java-programming.md")
     expect(existsSync(filePath)).toBe(true)
@@ -61,8 +61,8 @@ describe("appendTopicEntry", () => {
     appendTopicEntry(dir, "java programming", "Variables & Data Types", "First notes", progress)
     const result = appendTopicEntry(dir, "java programming", "Control Flow", "Second notes", progress)
 
-    expect(result).toContain("**Materi:** Variables & Data Types")
-    expect(result).toContain("**Materi:** Control Flow")
+    expect(result).toContain("**Topic:** Variables & Data Types")
+    expect(result).toContain("**Topic:** Control Flow")
     expect(result).toContain("First notes")
     expect(result).toContain("Second notes")
 
@@ -87,7 +87,7 @@ describe("generateIndexHandbook", () => {
 
     const result = generateIndexHandbook(dir, progress)
 
-    expect(result).toContain("# CodingSchool — Catatan Pembelajaran")
+    expect(result).toContain("# CodingSchool — Learning Notes")
     expect(result).toContain("[Java Programming](java-programming.md)")
     expect(result).toContain("60%")
 
@@ -103,8 +103,8 @@ describe("generateIndexHandbook", () => {
 
     const result = generateIndexHandbook(dir, progress)
 
-    expect(result).toContain("# CodingSchool — Catatan Pembelajaran")
-    expect(result).toContain("Belum ada topik yang dipelajari")
+    expect(result).toContain("# CodingSchool — Learning Notes")
+    expect(result).toContain("No topics have been studied yet")
 
     rmSync(dir, { recursive: true })
   })
@@ -114,7 +114,7 @@ describe("generateHandbook", () => {
   test("generates both topic and index files", () => {
     const dir = mkdtempSync(join(tmpdir(), "handbook-test-"))
     const progress = makeProgress()
-    const notes = "**Teori:**\nTest\n\n**Praktik:**\nTest"
+    const notes = "**Theory:**\nTest\n\n**Practice:**\nTest"
 
     const result = generateHandbook(dir, "java programming", "Hello World", notes, progress)
 
@@ -124,11 +124,11 @@ describe("generateHandbook", () => {
     expect(existsSync(result.indexPath)).toBe(true)
 
     const topicContent = readFileSync(result.topicPath, "utf-8")
-    expect(topicContent).toContain("# Java Programming — Catatan Pembelajaran")
-    expect(topicContent).toContain("**Materi:** Hello World")
+    expect(topicContent).toContain("# Java Programming — Learning Notes")
+    expect(topicContent).toContain("**Topic:** Hello World")
 
     const indexContent = readFileSync(result.indexPath, "utf-8")
-    expect(indexContent).toContain("# CodingSchool — Catatan Pembelajaran")
+    expect(indexContent).toContain("# CodingSchool — Learning Notes")
 
     rmSync(dir, { recursive: true })
   })
