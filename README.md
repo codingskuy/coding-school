@@ -6,7 +6,7 @@
 
 **Two agents. One mission. Real understanding.**
 
-[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)](https://github.com/codingskuy/codingschool)
+[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)](https://github.com/codingskuy/codingschool)
 [![Installs](https://img.shields.io/badge/installs-1,000-brightgreen?logo=npm)](https://www.npmjs.com/package/@codingskuy/coding-school)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
 [![Tests](https://img.shields.io/badge/tests-221%20passing-brightgreen.svg)](#development)
@@ -421,6 +421,10 @@ bun run build:quick
 ---
 
 ## 📜 Changelog
+
+### v2.1.1 — English README polish
+
+- Full English localization of handbook examples and metadata
 
 ### v2.1.0 — The Installer & Timeline (2026-07-29)
 

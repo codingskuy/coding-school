@@ -6,7 +6,7 @@ import { createInterface } from "readline"
 import { homedir } from "os"
 
 const PACKAGE_NAME = "@codingskuy/coding-school"
-const VERSION = "2.0.0"
+const VERSION = "2.1.1"
 
 const BANNER = `
   ╔═══════════════════════════════════════════════════════════╗
