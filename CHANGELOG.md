@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.2 - 2026-08-08
+
+### Added
+- Coach comprehension claim gate (pair-programming model): `cs_claim_open` snapshots target files (new + existing) and marks the timeline item as awaiting comprehension proof; `cs_claim_submit` closes a claim with `pass` (code stays + engineering competency bump), `fail` (attempts++ → re-explain at junior → mid → senior), or `revert` (roll back generated code — new files deleted, edited files restored, timeline → todo)
+- Coach agent now allowed to write/edit files inside the claim flow; file-write enforcement moved to per-agent permission maps (Teacher remains read-only)
+- Simple-warm dialogue style rule for both Teacher and Coach: plain language, real-life analogies, jargon explained in lay terms, short theory, aggressive-but-polite comprehension checks
+- CLI setup defaults to global scope with per-OS config paths and manual-setup fallback when no config file exists
+
+### Changed
+- `COACH_SYSTEM_PROMPT` rewritten around the comprehension gate + engineering levels (junior/mid/senior)
+- Timeline generator: task notes now persist correctly on JSON round-trip
+
 ## 1.0.4 - 2026-07-15
 
 ### Fixed
