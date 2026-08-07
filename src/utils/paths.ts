@@ -78,6 +78,14 @@ export function timelinePath(projectDir: string, projectName: string): string {
   return join(timelineDir(projectDir), `${slugify(projectName)}.json`)
 }
 
+export function claimsDir(projectDir: string): string {
+  return join(codingschoolDir(projectDir), "claims")
+}
+
+export function claimPath(projectDir: string, projectName: string): string {
+  return join(claimsDir(projectDir), `${slugify(projectName)}.json`)
+}
+
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 }

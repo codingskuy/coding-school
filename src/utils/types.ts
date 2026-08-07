@@ -209,3 +209,27 @@ export interface Task {
 export type TimelineStatus = "todo" | "in-progress" | "done" | "blocked"
 
 export type TimelineItemType = "milestone" | "sprint" | "epic" | "task"
+
+// Coach claim gate — pair-programming comprehension model
+export type EngineeringLevel = "junior" | "mid" | "senior"
+
+export type ClaimVerdict = "pass" | "fail" | "revert"
+
+export type ClaimStatus = "open" | "claimed" | "reverted"
+
+export interface ClaimFile {
+  path: string
+  existed: boolean
+  originalContent?: string
+}
+
+export interface ClaimRecord {
+  projectName: string
+  item: string
+  status: ClaimStatus
+  files: ClaimFile[]
+  attempts: number
+  successLevel?: EngineeringLevel
+  openedAt: string
+  resolvedAt?: string
+}

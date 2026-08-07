@@ -187,6 +187,8 @@ Then restart OpenCode and switch agent in the dropdown.
 | `cs_timeline_update` | Update timeline item status | Progress sync |
 | `cs_timeline_list` | View full project timeline | Status review |
 | `cs_project_scaffold` | Bootstrap project with full timeline, milestones & structure | Starting a new project |
+| `cs_claim_open` | Snapshot target files + mark timeline item as awaiting comprehension proof | Before Coach writes generated code |
+| `cs_claim_submit` | Close a claim: `pass` (code stays), `fail` (re-explain at next level), `revert` (roll back code) | After the comprehension gate |
 | `cs_code_review` | Quality, security, best practices | Code shared by student |
 | `cs_architecture_review` | Scalability, trade-offs | Design discussions |
 | `cs_grc_scan` | OWASP, secrets, validation | Security concerns |
@@ -396,8 +398,12 @@ The agent **adapts** to the student in real-time:
          │
          ▼
   ┌──────────────┐
-  │  FEATURE     │  Guide implementation with code review
-  │  GUIDANCE    │  + architecture assessment + GRC scan
+  │  FEATURE     │  Coach explains approach (simple language)
+  │  GENERATION  │  → cs_claim_open (snapshot files)
+  │  + CLAIM     │  → Coach writes the code
+  │  GATE        │  → Comprehension questions → verdict
+  │              │     pass → claimed | fail → re-explain
+  │              │     revert → code rolled back
   └──────┬───────┘
          │
          ▼
@@ -406,6 +412,21 @@ The agent **adapts** to the student in real-time:
   │  REFLECT     │  log engineering competency growth
   └──────────────┘
 ```
+
+### Comprehension Claim Gate
+
+Coach writes code like a build agent, but the code is **not final until the user claims it**:
+
+1. Coach calls `cs_claim_open` — snapshots the current state of every target file (new + existing).
+2. Coach writes the generated code.
+3. Coach asks 2-3 probing questions (e.g. "Jelaskan baris X pakai bahasamu sendiri").
+4. Coach judges the answers — "ya saya paham" without demonstration is **rejected warmly**.
+5. Verdict via `cs_claim_submit`:
+   - **`pass`** — user proved understanding → code stays, timeline item → `done`, engineering competency bumps.
+   - **`fail`** — attempts++, Coach re-explains at the next level (`junior` → `mid` → `senior`).
+   - **`revert`** — generated code is rolled back (new files deleted, edited files restored), timeline item → `todo`.
+
+Generated code is only considered done when claimed. If the user can't demonstrate understanding, Coach reverts — the code never silently becomes part of the project.
 
 ---
 
@@ -473,7 +494,7 @@ bun run build:quick
 - `cs_timeline_update` — update status
 - `cs_timeline_list` — view full timeline
 - `cs_project_scaffold` — bootstrap project with full structure
-- Coach workflow: Planning → Feature Guidance → Review
+- Coach workflow: Planning → Feature Generation + Comprehension Claim Gate → Review
 
 **🔧 Improvements:**
 - 221 tests (up from 200)

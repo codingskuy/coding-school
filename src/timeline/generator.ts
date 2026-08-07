@@ -110,7 +110,7 @@ export function updateTimelineItem(options: UpdateTimelineItemOptions): string {
   if (!found) return `Item "${itemName}" not found in project "${projectName}".`
 
   found.item.status = status
-  if (notes && "notes" in found.item) {
+  if (notes && found.type === "task") {
     found.item.notes = notes
   }
   saveTimeline(projectDir, data)

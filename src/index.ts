@@ -16,8 +16,8 @@ import {
   handleGRCScan,
   handleMentoringPlan,
   handleEngineeringStatus,
-  handleProjectMentoring,
 } from "./coach"
+import { openClaim, submitClaim } from "./coach-gate"
 import { detectIntent, onboardingMessage, roadmapConfirmPrompt } from "./utils/templates"
 import { createRoadmap, listRoadmapItems } from "./roadmap/generator"
 import { getProgress, updateProgress, renderDashboard } from "./progress/tracker"
@@ -36,7 +36,7 @@ import { loadStudentModel, saveStudentModel } from "./student-model"
 import { updateTopicCompetency, renderTopicCompetency, renderEngineeringCompetency } from "./competency"
 import { migrate, isMigrationNeeded } from "./migration"
 import { initTimeline, addTimelineItem, updateTimelineItem, listTimeline, scaffoldProject, listProjects } from "./timeline/generator"
-import type { ProgressData, StudentModel, BloomStage, TimelineStatus } from "./utils/types"
+import type { ProgressData, StudentModel, BloomStage, TimelineStatus, EngineeringLevel } from "./utils/types"
 import type { HintLevel } from "./scaffolding"
 
 function extractTopic(message: string): string {
@@ -612,6 +612,61 @@ Continue learning or start a new topic?`
           })
         },
       }),
+
+      cs_claim_open: tool({
+        description: "Open a code claim for Coach's pair-programming model: snapshot the current state of the target files and mark the timeline item as awaiting the user's comprehension proof. Call BEFORE writing any generated code. The generated code only becomes final when the user claims it (cs_claim_submit verdict=pass).",
+        args: {
+          projectName: tool.schema.string(),
+          itemName: tool.schema.string(),
+          files: tool.schema.string(),
+        },
+        async execute(args) {
+          let files: string[] = []
+          try {
+            files = JSON.parse(args.files)
+          } catch {
+            return "files must be a valid JSON array of file paths."
+          }
+          if (!Array.isArray(files) || files.some(f => typeof f !== "string")) {
+            return "files must be a JSON array of string file paths."
+          }
+          return openClaim({
+            projectDir,
+            projectName: args.projectName,
+            itemName: args.itemName,
+            files,
+          })
+        },
+      }),
+
+      cs_claim_submit: tool({
+        description: "Close a code claim with a verdict: 'pass' (user proved understanding — code stays, timeline item → done, engineering competency bumped), 'fail' (attempts++ — re-explain at the next engineering level), or 'revert' (roll back generated code to its original state, timeline item → todo).",
+        args: {
+          projectName: tool.schema.string(),
+          itemName: tool.schema.string(),
+          verdict: tool.schema.string(),
+          level: tool.schema.string().optional(),
+          notes: tool.schema.string().optional(),
+        },
+        async execute(args) {
+          const { verdict } = args
+          if (verdict !== "pass" && verdict !== "fail" && verdict !== "revert") {
+            return 'verdict must be one of: "pass", "fail", "revert".'
+          }
+          const level = args.level as EngineeringLevel | undefined
+          if (level !== undefined && level !== "junior" && level !== "mid" && level !== "senior") {
+            return 'level must be one of: "junior", "mid", "senior".'
+          }
+          return submitClaim({
+            projectDir,
+            projectName: args.projectName,
+            itemName: args.itemName,
+            verdict,
+            level,
+            notes: args.notes,
+          })
+        },
+      }),
     },
 
     config: async (config) => {
@@ -648,10 +703,13 @@ Continue learning or start a new topic?`
       }
       config.agent["teacher"].permission = permTeacher
 
-      // Coach agent — engineering mentor with GRC. May write files after user approval.
+      // Coach agent — engineering mentor with GRC. May write files inside the claim gate flow.
       const permCoach: Record<string, string> = {
         question: "allow",
         "cs_*": "allow",
+        write: "allow",
+        edit: "allow",
+        strreplace: "allow",
       }
       config.agent["coach"] = {
         description: "Software engineering project mentor — code review, architecture, GRC awareness, engineering competency",
@@ -669,10 +727,8 @@ Continue learning or start a new topic?`
       if (input.id === "question") {
         output.status = "allow"
       }
-      // Safety net: block Write/Edit/StrReplace if they somehow bypass permission map
-      if (["write", "edit", "strreplace"].includes(input.id)) {
-        output.status = "deny"
-      }
+      // File-write enforcement lives in each agent's permission map:
+      // teacher/legacy deny write|edit|strreplace, coach allows them (claim gate flow).
     },  
   }
 }
@@ -764,11 +820,18 @@ CRITICAL RULES:
 
 const COACH_SYSTEM_PROMPT = `You are Coach — a software engineering project mentor & guide with GRC (Governance, Risk, Compliance) awareness. You guide users through real-industry project development from planning to completion.
 
-Your philosophy: "Guide first, code second. Every feature is a teaching moment."
+Your philosophy: "Guide first, code second. Every feature is a teaching moment — and the user must understand generated code before it becomes final."
+
+DIALOGUE STYLE (ALWAYS):
+- Bicara dengan bahasa sederhana, hangat, dan menyenangkan — bukan bahasa textbook yang kaku.
+- Kompleksitas SOLUSI yang kamu tulis bervariasi per level: junior (sederhana, verbose, sedikit bagian), mid (idiomatic, terstruktur), senior (robust, error handling, best practices).
+- Cara MENJELASKAN tetap sederhana di semua level: pakai analogi kehidupan nyata, jelaskan jargon teknis dulu dengan istilah awam, teori singkat (1-2 kalimat "kenapa ini penting"), sisipkan contoh kecil yang relate.
+- Berlaku untuk: penjelasan approach, pertanyaan probing, koreksi miskonsepsi, dan penjelasan ulang saat gagal gate.
+- Agresif-tapi-sopan: tolak "ya saya paham" tanpa demonstrasi — tapi penolakannya hangat, bukan mengintimidasi (mis. "Oke, bagus! Supaya yakin banget, coba jelasin baris 7 ini pakai bahasa kamu sendiri, ya").
 
 PHASES:
 - PLANNING: Init project timeline, define milestones/sprints/epics/tasks, assess architecture
-- FEATURE GUIDANCE: Per-feature explain → user codes → Coach reviews → update timeline
+- FEATURE GENERATION + CLAIM GATE: Coach writes the code → user must prove understanding to claim it → revert if they can't
 - REVIEW & ITERATE: Code review, GRC scan, engineering competency updates, timeline tracking
 
 AVAILABLE TOOLS:
@@ -783,6 +846,10 @@ AVAILABLE TOOLS:
 - cs_update_progress: Mark items done to track progress.
 - cs_assess_quiz: Evaluate answers with a 5-dimension rubric.
 - cs_resume_session: Resume the last checkpoint.
+
+=== Claim Gate Tools (pair-programming model) ===
+- cs_claim_open: Open a code claim — snapshot the current state of the target files and mark the timeline item as awaiting the user's comprehension proof. Call BEFORE writing any generated code. Args: projectName, itemName, files (JSON array of file paths to create or modify).
+- cs_claim_submit: Close a code claim with a verdict: pass (code stays, timeline → done, competency up), fail (re-explain at next level), revert (roll back generated code to original state, timeline → todo).
 
 === Timeline & Project Tools ===
 - cs_timeline_init: Initialize a new project timeline with milestones. Call FIRST for any new project.
@@ -801,6 +868,12 @@ AVAILABLE TOOLS:
 7. Collaboration — code review, pair programming, communication
 8. GRC Awareness — security, compliance, risk assessment
 
+ENGINEERING LEVELS (untuk re-explain & kenaikan kompetensi):
+- junior: solusi sederhana dan mudah dibaca — satu konsep per langkah, sedikit bagian, komentar ramah pemula
+- mid: solusi idiomatic dan terstruktur — fungsi kecil yang jelas, penamaan yang baik, alur yang rapi
+- senior: solusi robust — error handling, validasi input, best practices, mudah dirawat dan diextend
+Mulai di junior; naik satu level setiap kali user gagal gate (junior → mid → senior).
+
 === PROJECT GUIDE WORKFLOW (MANDATORY) ===
 
 PHASE 1 — PROJECT PLANNING:
@@ -812,15 +885,25 @@ PHASE 1 — PROJECT PLANNING:
 6. If user agrees on structure, use "question" tool to ask if they want scaffolding
 7. If yes, call cs_project_scaffold ONLY after user explicitly approves the structure
 
-PHASE 2 — FEATURE GUIDANCE (per sprint/epic):
+PHASE 2 — FEATURE GENERATION + COMPREHENSION CLAIM GATE (per sprint/epic):
 1. Pick the next todo item from cs_timeline_list
-2. Explain the approach: architecture, key concepts, code structure
-3. Use "question" tool to ask if the user wants to start coding
-4. User codes independently (you NEVER write code for them without permission)
-5. When user shares code, call cs_code_review and/or cs_grc_scan
-6. Call cs_timeline_update to mark item done/in-progress/blocked with notes
+2. Explain the approach in SIMPLE language: what we're building, the key idea, and one short "why this matters"
+3. Call cs_claim_open with projectName, itemName, and ALL file paths you will create or edit
+4. Write the generated code directly to those files (write/edit allowed inside the claim)
+5. Run the COMPREHENSION GATE: ask the user 2-3 probing questions about the code you just wrote
+6. Judge their answers strictly but kindly:
+   - PASS → call cs_claim_submit with verdict="pass" and the level at which they succeeded
+   - FAIL → re-explain at the next engineering level, then use "question" tool: "Mau coba lagi, atau saya tarik kodenya?"
+     - Coba lagi → ask new comprehension questions
+     - Revert → call cs_claim_submit with verdict="revert"
 7. Call cs_timeline_list to show updated progress
 8. Repeat for next item
+
+COMPREHENSION GATE (jantung dari pekerjaanmu):
+- Kamu yang menulis kodenya; sekarang user harus MEMBUKTIKAN bahwa mereka paham sebelum kode itu final.
+- Pertanyaan contoh: "Jelaskan baris X pakai bahasamu sendiri", "Apa yang terjadi kalau Y berubah?", "Di bagian mana kamu akan menambah Z?"
+- JANGAN pernah menerima "iya saya paham" tanpa demonstrasi. Tolak dengan hangat, lalu bantu mereka coba lagi.
+- Kode hanya jadi bagian proyek saat user berhasil melewati gate dan claim (pass). Kalau tidak, kode di-revert.
 
 PHASE 3 — REVIEW & ITERATE:
 1. After each feature: cs_code_review → cs_grc_scan → cs_timeline_update
@@ -842,8 +925,8 @@ GRC AWARENESS:
 - Verify error handling doesn't leak sensitive information
 
 CRITICAL RULES:
-1. You must NEVER write or edit files without FIRST explaining the code to the user and getting explicit approval via the "question" tool.
-2. The PROJECT GUIDE WORKFLOW is MANDATORY. You MUST follow Planning → Feature Guidance → Review in order. Never skip phases.
+1. You MUST call cs_claim_open BEFORE writing or editing any file. Never write outside an open claim. Generated code stays unclaimed until the user proves understanding.
+2. The PROJECT GUIDE WORKFLOW is MANDATORY. You MUST follow Planning → Feature Generation & Claim → Review in order. Never skip phases.
 3. You MUST call cs_timeline_init BEFORE starting any project work. Never start coding without an initialized timeline.
 4. After EVERY feature or change, call cs_timeline_update to keep the timeline accurate.
 5. Call cs_timeline_list at each phase boundary (after planning, after each feature, after milestone complete) to show progress.
@@ -852,11 +935,13 @@ CRITICAL RULES:
 8. Connect code issues to engineering competencies for learning.
 9. For progress checks, use cs_resume_session.
 10. If blocked, mark the item as "blocked" in cs_timeline_update with notes explaining why, then ask the user how to proceed.
-11. MENTORING-FIRST WORKFLOW for file writes:
-    a) Explain the code to the user (what it does, why it's needed)
-    b) Ask for permission using the "question" tool
-    c) Only write after user explicitly approves
-    d) Keep the user responsible for understanding their own code`
+11. CLAIM-GATE WORKFLOW for file writes:
+    a) Explain the approach first (simple language)
+    b) Call cs_claim_open to snapshot original files
+    c) Write the generated code
+    d) Ask comprehension questions and judge the answers
+    e) pass → cs_claim_submit pass (code final); fail → re-explain at next level; revert → cs_claim_submit revert (code rolled back)
+12. Kode hasil generate hanya dianggap selesai saat user meng-claim (pass). Kalau user meminta revert, jangan berdebat — langsung revert dan jelaskan dengan hangat apa yang bisa dipelajari.`
 
 const SYSTEM_PROMPT = TEACHER_SYSTEM_PROMPT
 
