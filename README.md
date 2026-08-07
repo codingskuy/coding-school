@@ -68,12 +68,39 @@ npx @codingskuy/coding-school setup
 # Follow the prompts:
 # • Enable Teacher (student mentor)
 # • Enable Coach (project mentor)
-# • Auto-registers in opencode.json plugin[]
+# • Registers the plugin in your GLOBAL opencode.json plugin[]
 
 # Then restart OpenCode and switch agent in the dropdown.
 ```
 
+The installer targets your **global** OpenCode config, so CodingSchool works in every project. It auto-locates `opencode.json` per operating system:
+
+| OS | Global config path |
+|----|--------------------|
+| macOS | `~/.config/opencode/opencode.json` |
+| Linux | `~/.config/opencode/opencode.json` (or `$XDG_CONFIG_HOME/opencode/opencode.json` if set) |
+| Windows | `%USERPROFILE%\.config\opencode\opencode.json` |
+
+> Custom path? If `OPENCODE_CONFIG` is set, the installer uses that file instead.
+
+If no global config exists yet, the installer prints **manual setup instructions** with a ready-to-paste snippet — create the file yourself, then restart OpenCode.
+
 **Zero config needed.** Both agents auto-register with their tools, prompts, and permissions.
+
+### Manual install
+
+No config file yet? Create one at the path above for your OS and add:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@codingskuy/coding-school"]
+}
+```
+
+Then restart OpenCode and switch agent in the dropdown.
+
+> **Project-only?** Run `npx @codingskuy/coding-school setup --project` from inside a project to register CodingSchool in just that project's `opencode.json` (the installer only searches up to the nearest Git root, matching OpenCode's own behavior).
 
 > Requires **OpenCode v0.7+** (Plugin V2 API).
 

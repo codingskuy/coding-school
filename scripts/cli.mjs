@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs"
-import { join, dirname, basename } from "path"
+import { readFileSync, writeFileSync, existsSync } from "fs"
+import { join, dirname } from "path"
 import { createInterface } from "readline"
-import { homedir } from "os"
+import { homedir, platform } from "os"
 
 const PACKAGE_NAME = "@codingskuy/coding-school"
 const VERSION = "2.1.1"
@@ -60,45 +60,59 @@ function ensureDir(dir) {
 // ── Config Detection ─────────────────────────────────────────────────────
 
 function findOpencodeJson(startDir) {
+  // OpenCode only searches the current directory up to the nearest Git root.
   let dir = startDir
+  let reachedGitRoot = existsSync(join(dir, ".git"))
   for (let i = 0; i < 10; i++) {
     for (const name of ["opencode.json", "opencode.jsonc"]) {
       const p = join(dir, name)
       if (existsSync(p)) return p
     }
     const parent = dirname(dir)
-    if (parent === dir) break
+    if (parent === dir || reachedGitRoot) break
     dir = parent
+    reachedGitRoot = existsSync(join(dir, ".git"))
   }
   return null
 }
 
+// Global config lives at ~/.config/opencode/opencode.json on every platform
+// (on Windows ~ maps to %USERPROFILE%). OPENCODE_CONFIG overrides the default.
+function globalConfigCandidates() {
+  if (process.env.OPENCODE_CONFIG) {
+    return [process.env.OPENCODE_CONFIG]
+  }
+  if (platform() === "win32") {
+    const home = process.env.USERPROFILE || homedir()
+    const appData = process.env.APPDATA || join(home, "AppData", "Roaming")
+    return [
+      join(home, ".config", "opencode", "opencode.json"),
+      join(appData, "opencode", "opencode.json"),
+    ]
+  }
+  const home = homedir()
+  const xdg = process.env.XDG_CONFIG_HOME
+  const base = xdg ? join(xdg, "opencode") : join(home, ".config", "opencode")
+  return [join(base, "opencode.json")]
+}
+
+function getGlobalConfigPath() {
+  const candidates = globalConfigCandidates()
+  return candidates.find(p => existsSync(p)) || candidates[0]
+}
+
 function detectScope() {
-  const forceGlobal = process.argv.includes("--global")
-  const forceProject = process.argv.includes("--project")
-
-  if (forceGlobal) return { scope: "global", root: homedir() }
-  if (forceProject) {
-    const root = process.env.INIT_CWD || process.cwd()
-    return { scope: "project", root }
+  if (process.argv.includes("--global")) return { scope: "global" }
+  if (process.argv.includes("--project")) {
+    return { scope: "project", root: process.env.INIT_CWD || process.cwd() }
   }
-
-  // Auto-detect
-  const cwd = process.env.INIT_CWD || process.cwd()
-  const hasPackageJson = existsSync(join(cwd, "package.json"))
-
-  if (hasPackageJson) {
-    return { scope: "project", root: cwd }
-  }
-
-  return { scope: "global", root: homedir() }
+  // Default: global scope — register once, works in every project.
+  return { scope: "global" }
 }
 
 function getConfigPath(scope, root) {
-  if (scope === "global") {
-    return join(homedir(), ".config", "opencode", "opencode.json")
-  }
-  // For project scope, look for existing opencode.json
+  if (scope === "global") return getGlobalConfigPath()
+  // Project scope: reuse an existing opencode.json or create one in the root.
   const found = findOpencodeJson(root)
   if (found) return found
   return join(root, "opencode.json")
@@ -120,6 +134,43 @@ function addPluginEntry(config) {
   }
   config.plugin.push(PACKAGE_NAME)
   return "added"
+}
+
+function reportAlreadyRegistered() {
+  console.log("  ✓ CodingSchool already registered in plugin[].\n")
+  console.log('  Restart opencode (or run "opencode reload") to apply.\n')
+}
+
+function reportSuccess(scope) {
+  console.log("  ─────────────────────────────────────────────\n")
+  console.log("  ✅ Setup complete!\n")
+  console.log("  Next step: restart opencode to apply changes.\n")
+  if (scope === "global") {
+    console.log("  Tip: CodingSchool is now registered globally for every project.\n")
+    console.log("       For a single project only, run from inside that project:\n")
+    console.log("       npx @codingskuy/coding-school setup --project\n")
+  }
+}
+
+function printManualSetup(configPath) {
+  const dir = dirname(configPath)
+  const mkdirCmd =
+    platform() === "win32"
+      ? `New-Item -ItemType Directory -Force "${dir}"`
+      : `mkdir -p "${dir}"`
+
+  console.log("  ─────────────────────────────────────────────\n")
+  console.log(`  ✗ Global config not found:\n`)
+  console.log(`    ${configPath}\n`)
+  console.log("  Manual setup — create opencode.json with the plugin entry:\n")
+  console.log('    {')
+  console.log('      "$schema": "https://opencode.ai/config.json",')
+  console.log(`      "plugin": ["${PACKAGE_NAME}"]`)
+  console.log('    }\n')
+  console.log("  Steps:")
+  console.log(`    1. ${mkdirCmd}`)
+  console.log(`    2. Create "${configPath}" and paste the JSON above`)
+  console.log("    3. Restart opencode to apply changes.\n")
 }
 
 // ── Setup Flow ───────────────────────────────────────────────────────────
@@ -147,24 +198,44 @@ async function runSetup() {
   console.log(`\n  ✓ Enabled: ${enabledList.length > 0 ? enabledList.join(", ") : "none"}`)
   console.log()
 
-  // 2. Detect scope
+  // 2. Detect scope (default: global)
   console.log("  Detecting scope...\n")
   const { scope, root } = detectScope()
   console.log(`  → Scope: ${scope}`)
-  console.log(`  → Root: ${root}`)
   console.log()
 
-  // 3. Find/config opencode.json
+  // 3. Find the opencode.json path
   const configPath = getConfigPath(scope, root)
   console.log(`  → Config: ${configPath}`)
   console.log()
 
-  let existing = readJson(configPath)
+  // Global scope: only modify an existing config; otherwise guide manual setup.
+  if (scope === "global") {
+    const existing = readJson(configPath)
+    if (!existing) {
+      printManualSetup(configPath)
+      return
+    }
+    if (hasPluginEntry(existing)) {
+      reportAlreadyRegistered()
+      return
+    }
+    const action = addPluginEntry(existing)
+    writeJson(configPath, existing)
+    if (action === "created") {
+      console.log(`  ✓ Created plugin[] and added ${PACKAGE_NAME}\n`)
+    } else {
+      console.log(`  ✓ Added ${PACKAGE_NAME} to plugin[]\n`)
+    }
+    reportSuccess(scope)
+    return
+  }
 
+  // Project scope: reuse an existing config or create one in the project root.
+  let existing = readJson(configPath)
   if (existing) {
     if (hasPluginEntry(existing)) {
-      console.log("  ✓ CodingSchool already registered in plugin[].\n")
-      console.log('  Restart opencode (or run "opencode reload") to apply.\n')
+      reportAlreadyRegistered()
       return
     }
     const action = addPluginEntry(existing)
@@ -180,18 +251,10 @@ async function runSetup() {
       plugin: [PACKAGE_NAME],
     }
     writeJson(configPath, config)
-    console.log(`  ✓ Created ${scope === "global" ? "global" : "project"} opencode.json with CodingSchool\n`)
+    console.log("  ✓ Created project opencode.json with CodingSchool\n")
   }
 
-  // 4. Check if opencode is installed
-  console.log("  ─────────────────────────────────────────────\n")
-  console.log("  ✅ Setup complete!\n")
-  console.log("  Next step: restart opencode to apply changes.\n")
-
-  if (scope === "global") {
-    console.log("  Tip: For project-level config, run from your project directory:\n")
-    console.log("       npx @codingskuy/coding-school setup\n")
-  }
+  reportSuccess(scope)
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────
@@ -207,8 +270,8 @@ async function main() {
     case "help":
       console.log(`
   Usage:
-    npx @codingskuy/coding-school setup          Interactive setup (default)
-    npx @codingskuy/coding-school setup --project Force project scope
+    npx @codingskuy/coding-school setup          Interactive setup (default: global scope)
+    npx @codingskuy/coding-school setup --project Register only in the current project
     npx @codingskuy/coding-school setup --global  Force global scope
     npx @codingskuy/coding-school help            Show this help
       `)
