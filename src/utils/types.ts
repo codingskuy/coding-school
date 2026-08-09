@@ -115,6 +115,8 @@ export interface SessionSummary {
   reflectionNotes: string[]
 }
 
+export type LearningVelocity = "fast" | "steady" | "slow"
+
 export interface StudentModel {
   name?: string
   createdAt: string
@@ -135,6 +137,9 @@ export interface StudentModel {
   misconceptions: Misconception[]
   strengths: string[]
   weakAreas: string[]
+  // Derived compressed-memory signals (updated on save)
+  frequentStruggles: string[]
+  learningVelocity: LearningVelocity
 }
 
 export interface CompetencyData {
@@ -213,7 +218,15 @@ export type TimelineItemType = "milestone" | "sprint" | "epic" | "task"
 // Coach claim gate — pair-programming comprehension model
 export type EngineeringLevel = "junior" | "mid" | "senior"
 
-export type ClaimVerdict = "pass" | "fail" | "revert"
+export type ComprehensionScore = "correct" | "partial" | "incorrect"
+
+export interface ComprehensionAnswer {
+  question: string
+  answer: string
+  score: ComprehensionScore
+}
+
+export type ClaimVerdict = "pass" | "fail" | "revert" | "partial-pass-continue"
 
 export type ClaimStatus = "open" | "claimed" | "reverted"
 
@@ -232,4 +245,8 @@ export interface ClaimRecord {
   successLevel?: EngineeringLevel
   openedAt: string
   resolvedAt?: string
+  // Multi-turn grading — per-question comprehension evidence
+  qaHistory: ComprehensionAnswer[]
+  // Aggregate comprehension confidence (0-100) from qaHistory
+  confidence: number
 }

@@ -244,6 +244,118 @@ describe("submitClaim", () => {
     })
     expect(result).toContain("bukan")
   })
+
+  it("partial-pass-continue — keeps code, keeps claim open, timeline stays in-progress", () => {
+    const target = writeTargetFile("lib/add.ts", "")
+    openClaim({
+      projectDir: tmpDir,
+      projectName,
+      itemName: "Buat fungsi add",
+      files: [target],
+    })
+    writeFileSync(target, "export function add() {}", "utf-8")
+
+    const result = submitClaim({
+      projectDir: tmpDir,
+      projectName,
+      itemName: "Buat fungsi add",
+      verdict: "partial-pass-continue",
+      qa: [
+        { question: "q1", answer: "karena output berubah", score: "partial" },
+        { question: "q2", answer: "tidak tahu", score: "incorrect" },
+      ],
+    })
+
+    expect(result).toContain("SEBAGIAN")
+    expect(result).toContain("claim tetap terbuka")
+    expect(readFileSync(target, "utf-8")).toContain("export function add")
+
+    const claim = loadClaims()
+    expect(claim?.status).toBe("open")
+    expect(claim?.attempts).toBe(1)
+    expect(claim?.qaHistory).toHaveLength(2)
+
+    const timeline = loadTimeline(tmpDir, projectName)
+    expect(timeline?.milestones[0].sprints[0].epics[0].tasks[0].status).toBe("in-progress")
+  })
+
+  it("records qa evidence and computes aggregate confidence on pass", () => {
+    const target = writeTargetFile("lib/add.ts", "")
+    openClaim({
+      projectDir: tmpDir,
+      projectName,
+      itemName: "Buat fungsi add",
+      files: [target],
+    })
+
+    const qa = [
+      { question: "q1", answer: "karena error akan muncul", score: "correct" as const },
+      { question: "q2", answer: "maka hasilnya berubah", score: "correct" as const },
+    ]
+    const result = submitClaim({
+      projectDir: tmpDir,
+      projectName,
+      itemName: "Buat fungsi add",
+      verdict: "pass",
+      level: "mid",
+      qa,
+    })
+
+    expect(result).toContain("confidence 100/100")
+    const claim = loadClaims()
+    expect(claim?.confidence).toBe(100)
+    expect(claim?.qaHistory).toHaveLength(2)
+  })
+
+  it("pass with low confidence warns Coach to keep watching", () => {
+    const target = writeTargetFile("lib/add.ts", "")
+    openClaim({
+      projectDir: tmpDir,
+      projectName,
+      itemName: "Buat fungsi add",
+      files: [target],
+    })
+
+    const result = submitClaim({
+      projectDir: tmpDir,
+      projectName,
+      itemName: "Buat fungsi add",
+      verdict: "pass",
+      qa: [
+        { question: "q1", answer: "iya paham", score: "partial" as const },
+        { question: "q2", answer: "iya paham", score: "partial" as const },
+      ],
+    })
+
+    expect(result).toContain("confidence 50/100")
+    expect(result).toContain("memantau")
+  })
+
+  it("keeps claim open across a fail then closes it on a final pass", () => {
+    const target = writeTargetFile("lib/add.ts", "")
+    openClaim({
+      projectDir: tmpDir,
+      projectName,
+      itemName: "Buat fungsi add",
+      files: [target],
+    })
+    submitClaim({ projectDir: tmpDir, projectName, itemName: "Buat fungsi add", verdict: "fail" })
+    expect(loadClaims()?.attempts).toBe(1)
+    expect(loadClaims()?.status).toBe("open")
+
+    const final = submitClaim({
+      projectDir: tmpDir,
+      projectName,
+      itemName: "Buat fungsi add",
+      verdict: "pass",
+      qa: [
+        { question: "q1", answer: "karena error handling", score: "correct" as const },
+        { question: "q2", answer: "maka saya tambah fallback", score: "correct" as const },
+      ],
+    })
+    expect(final).toContain("di-claim")
+    expect(loadClaims()?.status).toBe("claimed")
+  })
 })
 
 describe("updateEngineeringFromClaim", () => {

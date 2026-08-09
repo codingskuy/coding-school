@@ -31,12 +31,16 @@ import { existsSync, readdirSync } from "fs"
 import { progressPath } from "./utils/paths"
 import { diagnoseStudent, generateDiagnosisQuestions, buildInitialDiagnosisPrompt } from "./diagnosis"
 import { getScaffolding, buildScaffoldingPrompt, shouldEscalateHint } from "./scaffolding"
+import { announceDiagnosis, getTeachingSignals, getCoachBriefing } from "./context"
+import { recordTool, checkAdvisories } from "./workflow"
+import { traceTool } from "./trace"
+import { scaffoldingOffset, applyScaffoldingOffset } from "./meta"
 import { generateReflectionPrompt, processSessionReflection, extractInsights } from "./reflection"
 import { loadStudentModel, saveStudentModel } from "./student-model"
 import { updateTopicCompetency, renderTopicCompetency, renderEngineeringCompetency } from "./competency"
 import { migrate, isMigrationNeeded } from "./migration"
 import { initTimeline, addTimelineItem, updateTimelineItem, listTimeline, scaffoldProject, listProjects } from "./timeline/generator"
-import type { ProgressData, StudentModel, BloomStage, TimelineStatus, EngineeringLevel } from "./utils/types"
+import type { ProgressData, StudentModel, BloomStage, TimelineStatus, EngineeringLevel, ComprehensionAnswer } from "./utils/types"
 import type { HintLevel } from "./scaffolding"
 
 function extractTopic(message: string): string {
@@ -152,6 +156,7 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
             level: args.level,
             content: args.content,
           })
+          recordTool(projectDir, { toolName: "cs_create_roadmap", topic: args.topic })
           return `Learning plan created at \`${path}\`\n\n${roadmapConfirmPrompt()}`
         },
       }),
@@ -174,6 +179,11 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
             item: args.item,
             status: args.status,
           })
+          recordTool(projectDir, { toolName: "cs_update_progress", topic: args.topic, item: args.item })
+          const warnings = checkAdvisories(projectDir, {
+            toolName: "cs_update_progress",
+            topic: args.topic,
+          })
           if (args.status === "done") {
             const roadmapDir = join(projectDir, ".codingschool", "roadmap", args.topic.toLowerCase())
             if (existsSync(roadmapDir)) {
@@ -185,7 +195,8 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
           }
           const notes = args.notes || ""
           const handbook = generateHandbook(projectDir, args.topic, args.item, notes, progress)
-          return `Progress updated.\n\n${renderDashboard(progress)}\n\nHandbook updated: \`${handbook.topicPath}\``
+          const warningLines = warnings.map(w => `> ⚠️ ${w}`).join("\n")
+          return `${warningLines ? warningLines + "\n\n" : ""}Progress updated.\n\n${renderDashboard(progress)}\n\nHandbook updated: \`${handbook.topicPath}\``
         },
       }),
 
@@ -211,6 +222,7 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
           })
 
           saveAssessment(projectDir, args.topic, rubric)
+          recordTool(projectDir, { toolName: "cs_assess_quiz", topic: args.topic })
 
           return renderAssessment(rubric)
         },
@@ -240,10 +252,16 @@ Continue from here?`
 
           const latest = getLatestSessionInfo(projectDir)
           if (latest) {
+            const model = loadStudentModel()
+            const struggleLine = model.frequentStruggles.length > 0
+              ? `- Sering nyangkut: ${model.frequentStruggles.join(", ")}`
+              : "- Tidak ada topik yang jadi titik lemah menonjol"
             return `Last checkpoint: session **${latest.date}**.
 - Topic: ${latest.data.topic}
 - Progress: ${latest.data.progressPercent}%
 - Bloom Stage: ${latest.data.bloomStage}
+- Learning velocity: ${model.learningVelocity}
+${struggleLine}
 
 Continue learning or start a new topic?`
           }
@@ -307,39 +325,47 @@ Continue learning or start a new topic?`
           priorExperience: tool.schema.string().optional(),
         },
         async execute(args) {
-          const responses: Record<string, string> = {}
-          if (args.name) responses.name = args.name
-          if (args.goal) responses.goal = args.goal
-          if (args.selfAssessment) responses.selfAssessment = args.selfAssessment
-          if (args.knownConcepts) responses.knownConcepts = args.knownConcepts
-          if (args.priorExperience) responses.priorExperience = args.priorExperience
+          return traceTool(projectDir, "teacher", "cs_diagnose_student", args, async () => {
+            const responses: Record<string, string> = {}
+            if (args.name) responses.name = args.name
+            if (args.goal) responses.goal = args.goal
+            if (args.selfAssessment) responses.selfAssessment = args.selfAssessment
+            if (args.knownConcepts) responses.knownConcepts = args.knownConcepts
+            if (args.priorExperience) responses.priorExperience = args.priorExperience
 
-          const hasResponses = Object.keys(responses).length > 0
-          const result = diagnoseStudent(args.topic, hasResponses ? responses : undefined)
+            const hasResponses = Object.keys(responses).length > 0
+            const result = diagnoseStudent(args.topic, hasResponses ? responses : undefined)
 
-          const lines: string[] = []
-          lines.push(`## Diagnosis: ${args.topic}`)
-          lines.push("")
-          if (result.isNew) {
-            lines.push("**New student detected** — setting up profile.")
+            recordTool(projectDir, { toolName: "cs_diagnose_student", topic: args.topic })
+            announceDiagnosis(projectDir, {
+              topic: args.topic,
+              misconceptions: result.misconceptions,
+            })
+
+            const lines: string[] = []
+            lines.push(`## Diagnosis: ${args.topic}`)
             lines.push("")
-          }
-          lines.push(`- **Level:** ${result.level}`)
-          lines.push(`- **Confidence:** ${result.confidence}%`)
-          lines.push(`- **Recommended style:** ${result.recommendedStyle}`)
-          if (result.knownTopics.length > 0) {
-            lines.push(`- **Known topics:** ${result.knownTopics.join(", ")}`)
-          }
-          if (result.unknownTopics.length > 0) {
-            lines.push(`- **Needs work:** ${result.unknownTopics.join(", ")}`)
-          }
-          if (result.misconceptions.length > 0) {
-            lines.push(`- **Misconceptions:** ${result.misconceptions.join("; ")}`)
-          }
-          lines.push(`- **Next step:** ${result.nextStep}`)
-          lines.push("")
-          lines.push(result.greeting)
-          return lines.join("\n")
+            if (result.isNew) {
+              lines.push("**New student detected** — setting up profile.")
+              lines.push("")
+            }
+            lines.push(`- **Level:** ${result.level}`)
+            lines.push(`- **Confidence:** ${result.confidence}%`)
+            lines.push(`- **Recommended style:** ${result.recommendedStyle}`)
+            if (result.knownTopics.length > 0) {
+              lines.push(`- **Known topics:** ${result.knownTopics.join(", ")}`)
+            }
+            if (result.unknownTopics.length > 0) {
+              lines.push(`- **Needs work:** ${result.unknownTopics.join(", ")}`)
+            }
+            if (result.misconceptions.length > 0) {
+              lines.push(`- **Misconceptions:** ${result.misconceptions.join("; ")}`)
+            }
+            lines.push(`- **Next step:** ${result.nextStep}`)
+            lines.push("")
+            lines.push(result.greeting)
+            return lines.join("\n")
+          })
         },
       }),
 
@@ -352,27 +378,49 @@ Continue learning or start a new topic?`
           hintLevel: tool.schema.number().optional(),
         },
         async execute(args) {
-          const model = loadStudentModel()
-          const result = getScaffolding({
-            topic: args.topic,
-            concept: args.concept,
-            studentAnswer: args.studentAnswer,
-            studentModel: model,
-          })
+          return traceTool(projectDir, "teacher", "cs_teach_concept", args, async () => {
+            const model = loadStudentModel()
+            const result = getScaffolding({
+              topic: args.topic,
+              concept: args.concept,
+              studentAnswer: args.studentAnswer,
+              studentModel: model,
+            })
 
-          const effectiveLevel = (args.hintLevel || result.hintLevel) as HintLevel
+            const offset = scaffoldingOffset(projectDir, args.topic)
+            const effectiveLevel = (args.hintLevel
+              ? (args.hintLevel as HintLevel)
+              : applyScaffoldingOffset(result.hintLevel, offset)) as HintLevel
 
-          const lines: string[] = []
-          lines.push(`**Scaffolding — Level ${effectiveLevel}/5: ${result.technique}**`)
-          lines.push("")
-          lines.push(result.hint)
-          lines.push("")
-          lines.push(`Next action: ${result.nextAction}`)
-          if (result.escalateHint) {
+            recordTool(projectDir, { toolName: "cs_teach_concept", topic: args.topic })
+
+            const lines: string[] = []
+            const warnings = checkAdvisories(projectDir, {
+              toolName: "cs_teach_concept",
+              topic: args.topic,
+            })
+            for (const w of warnings) lines.push(`> ⚠️ ${w}`)
+            const signals = getTeachingSignals(projectDir)
+            if (signals.length > 0) {
+              lines.push(`> **Context from Coach:** ${signals.join(" ")}`)
+            }
+            if (lines.length > 0) lines.push("")
+            lines.push(`**Scaffolding — Level ${effectiveLevel}/5: ${result.technique}**`)
             lines.push("")
-            lines.push("*Note: Student seems stuck. Consider escalating to the next hint level.*")
-          }
-          return lines.join("\n")
+            lines.push(result.hint)
+            lines.push("")
+            lines.push(`Next action: ${result.nextAction}`)
+            if (offset !== 0) {
+              lines.push(
+                `*(Meta-learning: hint level ${offset > 0 ? "dinaikkan" : "diturunkan"} ${Math.abs(offset)} level berdasarkan riwayat belajar topik ini.)*`,
+              )
+            }
+            if (result.escalateHint) {
+              lines.push("")
+              lines.push("*Note: Student seems stuck. Consider escalating to the next hint level.*")
+            }
+            return lines.join("\n")
+          })
         },
       }),
 
@@ -393,8 +441,14 @@ Continue learning or start a new topic?`
             teaching: args.teaching ?? 0,
           }
           updateTopicCompetency(projectDir, args.topic, scores)
+          recordTool(projectDir, { toolName: "cs_update_competency", topic: args.topic })
 
           const lines: string[] = []
+          const warnings = checkAdvisories(projectDir, {
+            toolName: "cs_update_competency",
+            topic: args.topic,
+          })
+          for (const w of warnings) lines.push(`> ⚠️ ${w}`)
           lines.push(`## Competency Updated: ${args.topic}`)
           lines.push("")
           lines.push(renderTopicCompetency(projectDir, args.topic))
@@ -413,46 +467,48 @@ Continue learning or start a new topic?`
           bloomStage: tool.schema.enum(["remember", "understand", "apply", "analyze", "evaluate", "create"]).optional(),
         },
         async execute(args) {
-          if (args.reflectionText) {
-            const model = loadStudentModel()
-            const result = processSessionReflection(args.topic, args.reflectionText, model)
+          return traceTool(projectDir, "teacher", "cs_reflect", args, async () => {
+            if (args.reflectionText) {
+              const model = loadStudentModel()
+              const result = processSessionReflection(args.topic, args.reflectionText, model)
+
+              const lines: string[] = []
+              lines.push("## Session Reflection")
+              lines.push("")
+              lines.push(result.summary)
+              lines.push("")
+              if (result.insights.length > 0) {
+                lines.push("**Insights:**")
+                for (const insight of result.insights) {
+                  lines.push(`- ${insight}`)
+                }
+                lines.push("")
+              }
+              lines.push(result.progressNote)
+              lines.push("")
+              lines.push("**Next Session Plan:**")
+              lines.push(result.nextSessionPlan)
+              lines.push("")
+              lines.push(result.encouragement)
+              return lines.join("\n")
+            }
+
+            const prompt = generateReflectionPrompt(
+              args.type,
+              args.topic,
+              args.bloomStage as BloomStage | undefined,
+            )
 
             const lines: string[] = []
-            lines.push("## Session Reflection")
+            lines.push(`## Reflection: ${args.type}`)
             lines.push("")
-            lines.push(result.summary)
+            lines.push(prompt.prompt)
             lines.push("")
-            if (result.insights.length > 0) {
-              lines.push("**Insights:**")
-              for (const insight of result.insights) {
-                lines.push(`- ${insight}`)
-              }
-              lines.push("")
-            }
-            lines.push(result.progressNote)
+            lines.push(`*${prompt.followUp}*`)
             lines.push("")
-            lines.push("**Next Session Plan:**")
-            lines.push(result.nextSessionPlan)
-            lines.push("")
-            lines.push(result.encouragement)
+            lines.push("After the student responds, call `cs_reflect` again with `reflectionText` set to their response to process it.")
             return lines.join("\n")
-          }
-
-          const prompt = generateReflectionPrompt(
-            args.type,
-            args.topic,
-            args.bloomStage as BloomStage | undefined,
-          )
-
-          const lines: string[] = []
-          lines.push(`## Reflection: ${args.type}`)
-          lines.push("")
-          lines.push(prompt.prompt)
-          lines.push("")
-          lines.push(`*${prompt.followUp}*`)
-          lines.push("")
-          lines.push("After the student responds, call `cs_reflect` again with `reflectionText` set to their response to process it.")
-          return lines.join("\n")
+          })
         },
       }),
 
@@ -463,8 +519,10 @@ Continue learning or start a new topic?`
           context: tool.schema.string().optional(),
         },
         async execute(args) {
-          const result = handleCodeReview(projectDir, args.code, args.context)
-          return result.message
+          return traceTool(projectDir, "coach", "cs_code_review", args, async () => {
+            const result = handleCodeReview(projectDir, args.code, args.context)
+            return result.message
+          })
         },
       }),
 
@@ -475,8 +533,10 @@ Continue learning or start a new topic?`
           patterns: tool.schema.string().optional(),
         },
         async execute(args) {
-          const result = handleArchitectureReview(projectDir, args.description, args.patterns)
-          return result.message
+          return traceTool(projectDir, "coach", "cs_architecture_review", args, async () => {
+            const result = handleArchitectureReview(projectDir, args.description, args.patterns)
+            return result.message
+          })
         },
       }),
 
@@ -487,8 +547,10 @@ Continue learning or start a new topic?`
           context: tool.schema.string().optional(),
         },
         async execute(args) {
-          const result = handleGRCScan(projectDir, args.code, args.context)
-          return result.message
+          return traceTool(projectDir, "coach", "cs_grc_scan", args, async () => {
+            const result = handleGRCScan(projectDir, args.code, args.context)
+            return result.message
+          })
         },
       }),
 
@@ -532,6 +594,7 @@ Continue learning or start a new topic?`
             return "milestones must be a JSON array of { name: string } objects."
           }
           const techStack = args.techStack.split(",").map(s => s.trim()).filter(Boolean)
+          recordTool(projectDir, { toolName: "cs_timeline_init", projectName: args.projectName })
           return initTimeline({
             projectDir,
             projectName: args.projectName,
@@ -630,40 +693,74 @@ Continue learning or start a new topic?`
           if (!Array.isArray(files) || files.some(f => typeof f !== "string")) {
             return "files must be a JSON array of string file paths."
           }
-          return openClaim({
+          const result = openClaim({
             projectDir,
             projectName: args.projectName,
             itemName: args.itemName,
             files,
           })
+          recordTool(projectDir, { toolName: "cs_claim_open", projectName: args.projectName, item: args.itemName })
+          const briefing = getCoachBriefing(projectDir)
+          const briefLines = briefing.length > 0
+            ? `> **Context from Teacher:** ${briefing.join(" ")}\n\n`
+            : ""
+          return `${briefLines}${result}`
         },
       }),
 
       cs_claim_submit: tool({
-        description: "Close a code claim with a verdict: 'pass' (user proved understanding — code stays, timeline item → done, engineering competency bumped), 'fail' (attempts++ — re-explain at the next engineering level), or 'revert' (roll back generated code to its original state, timeline item → todo).",
+        description: "Close a code claim with a verdict: 'pass' (user proved understanding — code stays, timeline item → done, engineering competency bumped), 'fail' (attempts++ — re-explain at the next engineering level), 'partial-pass-continue' (code stays, claim stays open, timeline stays in-progress — watch the weak areas), or 'revert' (roll back generated code to its original state, timeline item → todo). Pass `qa` (JSON array of { question, answer, score }) to record multi-turn comprehension evidence.",
         args: {
           projectName: tool.schema.string(),
           itemName: tool.schema.string(),
           verdict: tool.schema.string(),
           level: tool.schema.string().optional(),
           notes: tool.schema.string().optional(),
+          qa: tool.schema.string().optional(),
+          confidence: tool.schema.number().optional(),
         },
         async execute(args) {
           const { verdict } = args
-          if (verdict !== "pass" && verdict !== "fail" && verdict !== "revert") {
-            return 'verdict must be one of: "pass", "fail", "revert".'
+          if (verdict !== "pass" && verdict !== "fail" && verdict !== "revert" && verdict !== "partial-pass-continue") {
+            return 'verdict must be one of: "pass", "fail", "revert", "partial-pass-continue".'
           }
           const level = args.level as EngineeringLevel | undefined
           if (level !== undefined && level !== "junior" && level !== "mid" && level !== "senior") {
             return 'level must be one of: "junior", "mid", "senior".'
           }
-          return submitClaim({
-            projectDir,
-            projectName: args.projectName,
-            itemName: args.itemName,
-            verdict,
-            level,
-            notes: args.notes,
+          let qa: ComprehensionAnswer[] | undefined
+          if (args.qa) {
+            try {
+              qa = JSON.parse(args.qa)
+            } catch {
+              return 'qa must be a valid JSON array of { question, answer, score } objects.'
+            }
+            if (!Array.isArray(qa) || qa.some(q => !q.question || !q.answer || !q.score)) {
+              return 'qa must be a JSON array of { question, answer, score } objects.'
+            }
+          }
+          return traceTool(projectDir, "coach", "cs_claim_submit", args, async () => {
+            const warnings = checkAdvisories(projectDir, {
+              toolName: "cs_claim_submit",
+              item: args.itemName,
+            })
+            const result = await submitClaim({
+              projectDir,
+              projectName: args.projectName,
+              itemName: args.itemName,
+              verdict,
+              level,
+              notes: args.notes,
+              qa,
+              confidence: args.confidence,
+            })
+            recordTool(projectDir, {
+              toolName: "cs_claim_submit",
+              projectName: args.projectName,
+              item: args.itemName,
+              verdict,
+            })
+            return `${warnings.length > 0 ? warnings.map(w => `> ⚠️ ${w}`).join("\n") + "\n\n" : ""}${result}`
           })
         },
       }),
@@ -671,22 +768,6 @@ Continue learning or start a new topic?`
 
     config: async (config) => {
       config.agent ??= {}
-
-      // Backward-compatible: old agent ID redirects to teacher (hidden from selector)
-      config.agent["coding-school"] = {
-        description: "Software engineering learning mentor (legacy — redirects to teacher)",
-        prompt: TEACHER_SYSTEM_PROMPT,
-        mode: "subagent",
-      }
-      // Legacy agent — redirects to teacher (same restrictions)
-      const permLegacy: Record<string, string> = {
-        question: "allow",
-        "cs_*": "allow",
-        write: "deny",
-        edit: "deny",
-        strreplace: "deny",
-      }
-      config.agent["coding-school"].permission = permLegacy
 
       // Teacher agent — diagnosis-first, scaffolded teaching. NEVER writes files.
       config.agent["teacher"] = {
@@ -789,6 +870,7 @@ SCAFFOLDING RULES (cs_teach_concept):
 - When the student gets it right, DEESCALATE back to level 1 for the next concept
 - Never skip levels — always go step by step
 - End each hint with a question or challenge to check understanding
+- The tool output may include an auto-tuned starting level (meta-learning from learning history) and a "Context from Coach" block with the student's engineering gaps (e.g. weak in input validation, GRC). Weave those gaps into your examples and probing questions — don't ignore them.
 
 COMPETENCY TRACKING (cs_update_competency):
 - After teaching a concept, update its competency scores
@@ -897,8 +979,9 @@ PHASE 2 — FEATURE GENERATION + COMPREHENSION CLAIM GATE (per sprint/epic):
 3. Call cs_claim_open with projectName, itemName, and ALL file paths you will create or edit
 4. Write the generated code directly to those files (write/edit allowed inside the claim)
 5. Run the COMPREHENSION GATE: ask the user 2-3 probing questions about the code you just wrote
-6. Judge their answers strictly but kindly:
-   - PASS → call cs_claim_submit with verdict="pass" and the level at which they succeeded
+6. Judge their answers strictly but kindly (3-5 questions, multi-turn):
+   - PASS (confidence >= 75) → call cs_claim_submit with verdict="pass", the level at which they succeeded, and the qa evidence
+   - PARTIAL (confidence 40-74) → call cs_claim_submit with verdict="partial-pass-continue" — code stays, claim stays open, timeline stays in-progress, keep watching the weak areas
    - FAIL → re-explain at the next engineering level, then use "question" tool: "Mau coba lagi, atau saya tarik kodenya?"
      - Coba lagi → ask new comprehension questions
      - Revert → call cs_claim_submit with verdict="revert"
@@ -907,8 +990,15 @@ PHASE 2 — FEATURE GENERATION + COMPREHENSION CLAIM GATE (per sprint/epic):
 
 COMPREHENSION GATE (jantung dari pekerjaanmu):
 - Kamu yang menulis kodenya; sekarang user harus MEMBUKTIKAN bahwa mereka paham sebelum kode itu final.
+- Tanya 3-5 pertanyaan bertingkat, bukan sekali jalan (multi-turn grading). Bangun keyakinan bertahap: pertanyaan lanjutan menyesuaikan jawaban sebelumnya.
 - Pertanyaan contoh: "Jelaskan baris X pakai bahasamu sendiri", "Apa yang terjadi kalau Y berubah?", "Di bagian mana kamu akan menambah Z?"
 - JANGAN pernah menerima "iya saya paham" tanpa demonstrasi. Tolak dengan hangat, lalu bantu mereka coba lagi.
+- Saat cs_claim_submit, catat jawaban di arg qa: JSON array [{question, answer, score}] dengan score "correct" | "partial" | "incorrect" (mis. jawaban benar + penjelasan = correct, benar tapi samar = partial, asal nebak = incorrect).
+- Verdict:
+  - pass → user membuktikan pemahaman (confidence >= 75)
+  - fail → re-explain di level berikutnya (junior → mid → senior), tanya pertanyaan probing baru
+  - partial-pass-continue → pemahaman sebagian (confidence 40-74): kode tetap, claim tetap terbuka, timeline tetap in-progress, lanjut dengan pengawasan area yang lemah
+  - revert → kode ditarik
 - Kode hanya jadi bagian proyek saat user berhasil melewati gate dan claim (pass). Kalau tidak, kode di-revert.
 
 PHASE 3 — REVIEW & ITERATE:

@@ -101,6 +101,8 @@ export function migrate(projectDir: string, opts?: MigrationOptions): { migrated
     misconceptions: [],
     strengths: [],
     weakAreas: [],
+    frequentStruggles: [],
+    learningVelocity: "steady",
   }
 
   const competencyData: CompetencyData = { topics: {} }

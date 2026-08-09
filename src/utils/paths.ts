@@ -86,6 +86,18 @@ export function claimPath(projectDir: string, projectName: string): string {
   return join(claimsDir(projectDir), `${slugify(projectName)}.json`)
 }
 
+export function contextPath(projectDir: string): string {
+  return join(codingschoolDir(projectDir), "context.json")
+}
+
+export function workflowPath(projectDir: string): string {
+  return join(codingschoolDir(projectDir), "workflow.json")
+}
+
+export function logsDir(projectDir: string): string {
+  return join(codingschoolDir(projectDir), "logs")
+}
+
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 }

@@ -19,6 +19,7 @@ import {
   shouldPromoteLevel,
   shouldDemoteLevel,
   renderStudentModel,
+  deriveStudentSignals,
 } from "./student-model"
 import type { StudentModel } from "./utils/types"
 
@@ -238,5 +239,53 @@ describe("renderStudentModel", () => {
     const output = renderStudentModel(model)
     expect(output).toContain("Active Misconceptions")
     expect(output).toContain("Wrong method")
+  })
+})
+
+describe("deriveStudentSignals", () => {
+  test("derives frequent struggles from unresolved misconceptions and low-confidence topics", () => {
+    const model = makeModel()
+    addMisconception(model, "REST", "Wrong method")
+    addMisconception(model, "SQL", "Join order")
+    resolveMisconception(model, "SQL", "Join order")
+    model.knowledge["Auth"] = {
+      topic: "Auth", level: "beginner", confidence: 20, lastAssessed: "",
+      competency: { knowledge: 0, implementation: 0, debugging: 0, teaching: 0 },
+      bloomStage: "remember", misconceptionNotes: [], practiceCount: 0, lastPracticed: "",
+    }
+    deriveStudentSignals(model)
+    expect(model.frequentStruggles).toContain("REST")
+    expect(model.frequentStruggles).not.toContain("SQL")
+    expect(model.frequentStruggles).toContain("Auth")
+  })
+
+  test("caps frequent struggles at five topics", () => {
+    const model = makeModel()
+    for (const t of ["A", "B", "C", "D", "E", "F", "G"]) {
+      addMisconception(model, t, `mis on ${t}`)
+    }
+    deriveStudentSignals(model)
+    expect(model.frequentStruggles.length).toBeLessThanOrEqual(5)
+  })
+
+  test("stays steady with fewer than three sessions", () => {
+    const model = makeModel()
+    deriveStudentSignals(model)
+    expect(model.learningVelocity).toBe("steady")
+  })
+
+  test("reports fast velocity when later sessions reach higher Bloom stages", () => {
+    const model = makeModel({
+      sessions: [
+        { date: "2026-01-01", topic: "React", bloomStageReached: "remember", durationMin: 30, quizScore: 40 },
+        { date: "2026-01-02", topic: "React", bloomStageReached: "understand", durationMin: 30, quizScore: 50 },
+        { date: "2026-01-03", topic: "React", bloomStageReached: "apply", durationMin: 30, quizScore: 60 },
+        { date: "2026-01-04", topic: "React", bloomStageReached: "analyze", durationMin: 30, quizScore: 70 },
+        { date: "2026-01-05", topic: "React", bloomStageReached: "evaluate", durationMin: 30, quizScore: 80 },
+        { date: "2026-01-06", topic: "React", bloomStageReached: "create", durationMin: 30, quizScore: 90 },
+      ],
+    })
+    deriveStudentSignals(model)
+    expect(model.learningVelocity).toBe("fast")
   })
 })

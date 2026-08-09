@@ -5,6 +5,7 @@ import { readJson } from "./utils/fs"
 import { reviewCode, assessArchitecture, scanGRC, generateMentoringPlan, updateEngineeringFromReview, type CodeReviewResult, type ArchitectureAssessment, type GRCScanResult } from "./engineering"
 import { loadStudentModel } from "./student-model"
 import { loadCompetency, renderEngineeringCompetency, getEngineeringAverage } from "./competency"
+import { announceReviewFindings } from "./context"
 
 export interface CoachContext {
   projectDir: string
@@ -179,6 +180,10 @@ export function handleCodeReview(
 ): CoachResponse {
   const result = reviewCode(projectDir, code, context)
   updateEngineeringFromReview(projectDir, result)
+  announceReviewFindings(projectDir, {
+    improvements: result.improvements,
+    grcFlags: result.grcFlags,
+  })
 
   const lines: string[] = []
   lines.push(`## Code Review — Score: ${result.score}/100`)

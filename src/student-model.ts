@@ -10,6 +10,7 @@ import type {
   Misconception,
   SessionSummary,
   BloomStage,
+  LearningVelocity,
 } from "./utils/types"
 
 const GLOBAL_DIR = join(homedir(), ".config", "opencode", "codingschool")
@@ -39,17 +40,64 @@ function defaultStudentModel(): StudentModel {
     misconceptions: [],
     strengths: [],
     weakAreas: [],
+    frequentStruggles: [],
+    learningVelocity: "steady",
   }
 }
 
 export function loadStudentModel(): StudentModel {
-  return readJson<StudentModel>(STUDENT_MODEL_PATH, defaultStudentModel())
+  const model = readJson<StudentModel>(STUDENT_MODEL_PATH, defaultStudentModel())
+  // Backward compatibility: fill derived fields on old profiles.
+  if (!model.frequentStruggles) model.frequentStruggles = []
+  if (!model.learningVelocity) model.learningVelocity = "steady"
+  return model
 }
 
 export function saveStudentModel(model: StudentModel): void {
   ensureDir(GLOBAL_DIR)
   model.lastActiveAt = new Date().toISOString()
+  deriveStudentSignals(model)
   writeJson(STUDENT_MODEL_PATH, model)
+}
+
+const BLOOM_ORDER: BloomStage[] = ["remember", "understand", "apply", "analyze", "evaluate", "create"]
+
+/**
+ * Compressed-memory signals: which topics the student keeps struggling on,
+ * and how fast they move up Bloom's taxonomy across recent sessions.
+ * Derived on every save so agents read a summary, not the full history.
+ */
+export function deriveStudentSignals(model: StudentModel): void {
+  const struggles: string[] = []
+  const misconceptions = model.misconceptions ?? []
+  const knowledge = model.knowledge ?? {}
+
+  for (const m of misconceptions) {
+    if (!m.resolved && !struggles.includes(m.topic)) struggles.push(m.topic)
+  }
+  for (const [topic, node] of Object.entries(knowledge)) {
+    if ((node.confidence ?? 0) < 30 && !struggles.includes(topic)) struggles.push(topic)
+  }
+
+  model.frequentStruggles = struggles.slice(0, 5)
+  model.learningVelocity = deriveLearningVelocity(model)
+}
+
+function deriveLearningVelocity(model: StudentModel): LearningVelocity {
+  const sessions = model.sessions ?? []
+  if (sessions.length < 3) return "steady"
+
+  const half = Math.floor(sessions.length / 2)
+  const firstHalf = sessions.slice(0, half)
+  const secondHalf = sessions.slice(half)
+
+  const avgBloom = (list: SessionSummary[]) =>
+    list.reduce((sum, s) => sum + BLOOM_ORDER.indexOf(s.bloomStageReached), 0) / list.length
+
+  const delta = avgBloom(secondHalf) - avgBloom(firstHalf)
+  if (delta >= 0.5) return "fast"
+  if (delta <= -0.5) return "slow"
+  return "steady"
 }
 
 export function initStudentModel(name?: string, goal?: string): StudentModel {
