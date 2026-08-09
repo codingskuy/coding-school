@@ -6,10 +6,10 @@
 
 **Two agents. One mission. Real understanding.**
 
-[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)](https://github.com/codingskuy/codingschool)
+[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/codingskuy/codingschool)
 [![Installs](https://img.shields.io/badge/installs-1,000-brightgreen?logo=npm)](https://www.npmjs.com/package/@codingskuy/coding-school)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Tests](https://img.shields.io/badge/tests-221%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-286%20passing-brightgreen.svg)](#development)
 [![OpenCode](https://img.shields.io/badge/OpenCode-v0.7+-purple.svg)](https://opencode.ai)
 
 ---
@@ -188,7 +188,7 @@ Then restart OpenCode and switch agent in the dropdown.
 | `cs_timeline_list` | View full project timeline | Status review |
 | `cs_project_scaffold` | Bootstrap project with full timeline, milestones & structure | Starting a new project |
 | `cs_claim_open` | Snapshot target files + mark timeline item as awaiting comprehension proof | Before Coach writes generated code |
-| `cs_claim_submit` | Close a claim: `pass` (code stays), `fail` (re-explain at next level), `revert` (roll back code) | After the comprehension gate |
+| `cs_claim_submit` | Close a claim: `pass`, `fail` (re-explain at next level), `partial-pass-continue` (code stays, claim open), `revert` (roll back code). Pass `qa` for multi-turn comprehension evidence | After the comprehension gate |
 | `cs_code_review` | Quality, security, best practices | Code shared by student |
 | `cs_architecture_review` | Scalability, trade-offs | Design discussions |
 | `cs_grc_scan` | OWASP, secrets, validation | Security concerns |
@@ -401,9 +401,9 @@ The agent **adapts** to the student in real-time:
   │  FEATURE     │  Coach explains approach (simple language)
   │  GENERATION  │  → cs_claim_open (snapshot files)
   │  + CLAIM     │  → Coach writes the code
-  │  GATE        │  → Comprehension questions → verdict
-  │              │     pass → claimed | fail → re-explain
-  │              │     revert → code rolled back
+  │  GATE        │  → Comprehension questions (multi-turn) → verdict
+  │              │     pass → claimed | partial → watch
+  │              │     fail → re-explain | revert → code rolled back
   └──────┬───────┘
          │
          ▼
@@ -419,14 +419,29 @@ Coach writes code like a build agent, but the code is **not final until the user
 
 1. Coach calls `cs_claim_open` — snapshots the current state of every target file (new + existing).
 2. Coach writes the generated code.
-3. Coach asks 2-3 probing questions (e.g. "Jelaskan baris X pakai bahasamu sendiri").
-4. Coach judges the answers — "ya saya paham" without demonstration is **rejected warmly**.
+3. Coach asks **3-5 probing questions, multi-turn** (e.g. "Jelaskan baris X pakai bahasamu sendiri", then follow-ups tuned to the answers). Question banks scale with engineering level (junior → mid → senior).
+4. Coach scores each answer (`correct` / `partial` / `incorrect`) and records them in the `qa` argument of `cs_claim_submit`. Aggregate confidence = 70% average + 30% weakest answer, so one lucky guess can't carry the gate.
 5. Verdict via `cs_claim_submit`:
-   - **`pass`** — user proved understanding → code stays, timeline item → `done`, engineering competency bumps.
-   - **`fail`** — attempts++, Coach re-explains at the next level (`junior` → `mid` → `senior`).
+   - **`pass`** (confidence ≥ 75) — user proved understanding → code stays, timeline item → `done`, engineering competency bumps. A `pass` under 75 adds a note to keep watching that area.
+   - **`partial-pass-continue`** (confidence 40-74) — code stays, claim stays open, timeline stays `in-progress`; Coach keeps watching the weak answers.
+   - **`fail`** — attempts++, Coach re-explains at the next level (`junior` → `mid` → `senior`). A history of reverted claims or repeated failures caps re-explanation at `mid` (gentler pacing).
    - **`revert`** — generated code is rolled back (new files deleted, edited files restored), timeline item → `todo`.
 
 Generated code is only considered done when claimed. If the user can't demonstrate understanding, Coach reverts — the code never silently becomes part of the project.
+
+---
+
+## 🤖 Agentic Workflow Layer
+
+The dual-agent loop is wired with shared state and observability so Teacher and Coach don't work blind:
+
+- **Shared context** (`.codingschool/context.json`) — Teacher announces diagnosis (active topic, misconceptions) and Coach writes review/claim findings (weak engineering dimensions, skill gaps, claimed level). Teacher's `cs_teach_concept` output includes a "Context from Coach" block; Coach's `cs_claim_open` output includes a "Context from Teacher" brief.
+- **Workflow validator** (`.codingschool/workflow.json`) — records tool calls and emits **advisory warnings** (never blocking) when the order is off, e.g. teaching a topic before diagnosis, or submitting a claim with no recorded `cs_claim_open`.
+- **Decision traces** (`.codingschool/logs/YYYY-MM-DD.jsonl`) — debug-only internal logs (agent, tool, sanitized input, outcome, duration). Code, file lists, answers and notes are **never written**. Rotates at 500 lines.
+- **Meta-learning** — the initial hint level is auto-tuned from learning history (struggling topics get more scaffolding, mastered topics less), and re-explanation level is capped for students with poor claim history.
+- **Compressed memory** — `student-model.json` derives `frequentStruggles` (≤5 topics) and `learningVelocity` (fast/steady/slow from Bloom-stage progress), shown on `cs_resume_session`.
+
+Trace the lifecycle of a claim: `cs_claim_open` → comprehension Q&A (recorded in `qa`) → `cs_claim_submit` (pass / partial-pass-continue / fail / revert). Every step lands in the shared context and the workflow log.
 
 ---
 
@@ -436,7 +451,7 @@ Generated code is only considered done when claimed. If the user can't demonstra
 # Install dependencies
 bun install
 
-# Run all 221 tests
+# Run all 286 tests
 bun test
 
 # Type check
@@ -470,6 +485,31 @@ bun run build:quick
 
 ## 📜 Changelog
 
+### v2.2.0 — Agentic Workflow Layer (2026-08-10)
+
+**🤖 Agentic Workflow Layer:**
+- Shared context (`.codingschool/context.json`) — Teacher and Coach exchange diagnosis, review findings, and skill gaps so neither works blind
+- Workflow validator (`.codingschool/workflow.json`) — records tool calls and emits advisory warnings when the order is off (never blocking)
+- Decision traces (`.codingschool/logs/YYYY-MM-DD.jsonl`) — debug-only logs, rotated at 500 lines
+- Meta-learning — hint levels auto-tuned from learning history; re-explanation capped for weak claim history
+- Compressed memory — `frequentStruggles` and `learningVelocity` derived for smarter resumes
+
+**🧑‍🏫 Multi-turn Comprehension Gate:**
+- 3-5 probing questions scaled by engineering level (junior → mid → senior)
+- `qa` evidence in `cs_claim_submit` with aggregate confidence scoring
+- New `partial-pass-continue` verdict
+
+**🔧 Improvements:**
+- 286 tests (up from 221)
+- Legacy `coding-school` agent removed — only Teacher and Coach
+
+### v2.1.2 — Comprehension Claim Gate (2026-08-08)
+
+- Coach claim gate (pair-programming): `cs_claim_open` snapshots files, `cs_claim_submit` closes with `pass`/`fail`/`revert`
+- Coach allowed to write/edit files inside the claim flow; Teacher remains read-only
+- Simple-warm dialogue style for both agents
+- CLI setup defaults to global scope with per-OS config paths + manual fallback
+
 ### v2.1.1 — English README polish
 
 - Full English localization of handbook examples and metadata
@@ -494,7 +534,7 @@ bun run build:quick
 - `cs_timeline_update` — update status
 - `cs_timeline_list` — view full timeline
 - `cs_project_scaffold` — bootstrap project with full structure
-- Coach workflow: Planning → Feature Generation + Comprehension Claim Gate → Review
+- Coach workflow: Planning → Feature Guidance → Review
 
 **🔧 Improvements:**
 - 221 tests (up from 200)

@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.2.0 - 2026-08-10
+
+### Added
+- Agentic Workflow Layer: shared context (`.codingschool/context.json`), workflow validator (`.codingschool/workflow.json`), decision traces (`.codingschool/logs/YYYY-MM-DD.jsonl`, rotated at 500 lines)
+- Meta-learning: hint levels auto-tuned from learning history; re-explanation level capped for students with repeated failed/reverted claims
+- Compressed memory: `frequentStruggles` (≤5 topics) and `learningVelocity` (fast/steady/slow) derived and shown on `cs_resume_session`
+- Multi-turn comprehension gate: 3-5 probing questions scaled by engineering level, with `qa` evidence and aggregate confidence scoring in `cs_claim_submit`
+- `partial-pass-continue` verdict: code stays, claim stays open, timeline stays in-progress
+- Question bank scales with engineering level (junior → mid → senior)
+
+### Changed
+- Removed legacy `coding-school` agent — only Teacher and Coach are registered
+- `cs_claim_submit` accepts `qa` array for multi-turn comprehension evidence
+
+### Fixed
+- Reverted claims or repeated failures now cap re-explanation at `mid` level (gentler pacing)
+
 ## 2.1.2 - 2026-08-08
 
 ### Added
