@@ -103,7 +103,7 @@ describe("extractInsights", () => {
 
 describe("detectMisconceptionsFromReflection", () => {
   test("detects 'all concepts are same' misconception", () => {
-    const mcs = detectMisconceptionsFromReflection("JS", "Semua konsep itu sama aja sih")
+    const mcs = detectMisconceptionsFromReflection("JS", "All these concepts are the same, no difference")
     expect(mcs.some(m => m.description.includes("Cannot distinguish"))).toBe(true)
   })
 

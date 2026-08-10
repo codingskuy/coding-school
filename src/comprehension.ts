@@ -52,43 +52,43 @@ export function buildComprehensionQuestions(
   const base: Record<EngineeringLevel, ComprehensionQuestion[]> = {
     junior: [
       {
-        question: `Jelaskan baris pertama file${fileHint} pakai bahasamu sendiri — apa yang dilakukan kode ini?`,
+        question: `Explain the first line of the file${fileHint} in your own words — what does this code do?`,
         focus: "basic-read",
       },
       {
-        question: `Kalau salah satu variable${fileHint} diubah nilainya, apa yang terjadi pada outputnya?`,
+        question: `If one of the variables${fileHint} changed its value, what happens to the output?`,
         focus: "cause-effect",
       },
       {
-        question: `Di bagian mana kamu akan menambah fitur kecil (misal menampilkan pesan)?`,
+        question: `Where would you add a small feature (e.g. displaying a message)?`,
         focus: "extension",
       },
     ],
     mid: [
       {
-        question: `Kenapa function${fileHint} dipecah seperti ini? Apa yang terjadi kalau semua digabung jadi satu?`,
+        question: `Why is function${fileHint} split up like this? What happens if everything is merged into one?`,
         focus: "decomposition",
       },
       {
-        question: `Apa trade-off dari approach${fileHint} ini dibanding alternatif yang lebih sederhana?`,
+        question: `What are the trade-offs of this approach${fileHint} compared to a simpler alternative?`,
         focus: "tradeoffs",
       },
       {
-        question: `Kalau input di sini kosong atau salah tipe, di mana kodenya bisa error dan kenapa?`,
+        question: `If the input here is empty or the wrong type, where can the code fail and why?`,
         focus: "edge-cases",
       },
     ],
     senior: [
       {
-        question: `Di mana titik paling rentan error-handling${fileHint}, dan bagaimana kamu akan menambahkan fallback?`,
+        question: `Where is the most fragile error-handling spot${fileHint}, and how would you add a fallback?`,
         focus: "robustness",
       },
       {
-        question: `Bagian mana yang berpotensi jadi bottleneck atau masalah performa, dan bagaimana kamu mengukur/memperbaikinya?`,
+        question: `Which part could become a bottleneck or performance problem, and how would you measure or fix it?`,
         focus: "performance",
       },
       {
-        question: `Menurut OWASP, apa risiko keamanan yang bisa masuk lewat bagian${fileHint} ini, dan bagaimana memitigasinya?`,
+        question: `Per OWASP, what security risks could enter through this part${fileHint}, and how would you mitigate them?`,
         focus: "security",
       },
     ],
@@ -101,9 +101,9 @@ export function scoreAnswer(answer: string, question: string): ComprehensionScor
   if (!answer || answer.trim().length === 0) return "incorrect"
   const lower = answer.toLowerCase()
 
-  const vagueSignals = /(iya|ya saya paham|yes|understand|ok|got it|bagus|lumayan)/.test(lower)
-  const demoSignals = /(karena|sebab|berarti|ketika|kalau|karena itu|caranya|langkah|step|baris|output|hasil|maka|itu akan)/.test(lower)
-  const denialSignals = /(tidak|gak|nggak|don'?t|no idea|entah|bingung)/.test(lower)
+  const vagueSignals = /(i understand|yes|understand|ok|got it|i see|makes sense)/.test(lower)
+  const demoSignals = /(because|since|means|when|if .* then|steps|line|output|result|so |will|would|it does)/.test(lower)
+  const denialSignals = /(i don'?t know|not sure|no idea|unsure|confused|can'?t)/.test(lower)
 
   if (denialSignals && !demoSignals) return "incorrect"
   if (demoSignals && !vagueSignals) return "correct"

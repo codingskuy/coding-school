@@ -23,7 +23,7 @@ function initProject(): void {
   })
   addTimelineItem({ projectDir: tmpDir, projectName, type: "sprint", name: "Sprint 1", parentName: "MVP" })
   addTimelineItem({ projectDir: tmpDir, projectName, type: "epic", name: "Epic 1", parentName: "Sprint 1" })
-  addTimelineItem({ projectDir: tmpDir, projectName, type: "task", name: "Buat fungsi add", parentName: "Epic 1" })
+  addTimelineItem({ projectDir: tmpDir, projectName, type: "task", name: "Build add function", parentName: "Epic 1" })
 }
 
 function writeTargetFile(relPath: string, content: string): string {
@@ -54,11 +54,11 @@ describe("openClaim", () => {
     const result = openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [existingPath, newPath],
     })
 
-    expect(result).toContain("Claim dibuka")
+    expect(result).toContain("Claim opened")
     const claim = loadClaims()
     expect(claim?.status).toBe("open")
     expect(claim?.files).toHaveLength(2)
@@ -76,7 +76,7 @@ describe("openClaim", () => {
     const result = openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [],
     })
     expect(result).toContain("at least one file")
@@ -96,13 +96,13 @@ describe("openClaim", () => {
     openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [join(tmpDir, "add.ts")],
     })
     const result = openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [join(tmpDir, "add.ts")],
     })
     expect(result).toContain("already an open claim")
@@ -115,7 +115,7 @@ describe("submitClaim", () => {
     openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [target],
     })
     writeFileSync(target, "export function add(a: number, b: number) { return a + b } // generated", "utf-8")
@@ -123,12 +123,12 @@ describe("submitClaim", () => {
     const result = submitClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       verdict: "pass",
       level: "mid",
     })
 
-    expect(result).toContain("di-claim")
+    expect(result).toContain("claimed!")
     expect(result).toContain("Mid")
     expect(readFileSync(target, "utf-8")).toContain("// generated")
 
@@ -153,18 +153,18 @@ describe("submitClaim", () => {
     openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [target],
     })
 
     const result = submitClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       verdict: "fail",
     })
 
-    expect(result).toContain("percobaan ke-1")
+    expect(result).toContain("attempt 1")
     expect(result).toContain("Mid")
     const claim = loadClaims()
     expect(claim?.status).toBe("open")
@@ -176,12 +176,12 @@ describe("submitClaim", () => {
     openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [target],
     })
-    submitClaim({ projectDir: tmpDir, projectName, itemName: "Buat fungsi add", verdict: "fail" })
+    submitClaim({ projectDir: tmpDir, projectName, itemName: "Build add function", verdict: "fail" })
 
-    const result = submitClaim({ projectDir: tmpDir, projectName, itemName: "Buat fungsi add", verdict: "fail" })
+    const result = submitClaim({ projectDir: tmpDir, projectName, itemName: "Build add function", verdict: "fail" })
     expect(result).toContain("Senior")
     expect(loadClaims()?.attempts).toBe(2)
   })
@@ -193,7 +193,7 @@ describe("submitClaim", () => {
     openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [existingPath, newPath],
     })
     writeFileSync(existingPath, "// user overwrote during the session", "utf-8")
@@ -202,12 +202,12 @@ describe("submitClaim", () => {
     const result = submitClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       verdict: "revert",
-      notes: "User minta revert",
+      notes: "User requested revert",
     })
 
-    expect(result).toContain("ditarik")
+    expect(result).toContain("pulled")
     expect(readFileSync(existingPath, "utf-8")).toBe("export const todos: string[] = []")
     expect(existsSync(newPath)).toBe(false)
 
@@ -216,33 +216,33 @@ describe("submitClaim", () => {
 
     const timeline = loadTimeline(tmpDir, projectName)
     expect(timeline?.milestones[0].sprints[0].epics[0].tasks[0].status).toBe("todo")
-    expect(timeline?.milestones[0].sprints[0].epics[0].tasks[0].notes).toContain("minta revert")
+    expect(timeline?.milestones[0].sprints[0].epics[0].tasks[0].notes).toContain("requested revert")
   })
 
   it("rejects when no open claim exists", () => {
     const result = submitClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       verdict: "pass",
     })
-    expect(result).toContain("Tidak ada claim")
+    expect(result).toContain("No open claim")
   })
 
   it("rejects a verdict that does not match the open claim item", () => {
     openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [join(tmpDir, "add.ts")],
     })
     const result = submitClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Task lain",
+      itemName: "Another task",
       verdict: "pass",
     })
-    expect(result).toContain("bukan")
+    expect(result).toContain("not")
   })
 
   it("partial-pass-continue — keeps code, keeps claim open, timeline stays in-progress", () => {
@@ -250,7 +250,7 @@ describe("submitClaim", () => {
     openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [target],
     })
     writeFileSync(target, "export function add() {}", "utf-8")
@@ -258,16 +258,16 @@ describe("submitClaim", () => {
     const result = submitClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       verdict: "partial-pass-continue",
       qa: [
-        { question: "q1", answer: "karena output berubah", score: "partial" },
-        { question: "q2", answer: "tidak tahu", score: "incorrect" },
+        { question: "q1", answer: "the output changes", score: "partial" },
+        { question: "q2", answer: "i don't know", score: "incorrect" },
       ],
     })
 
-    expect(result).toContain("SEBAGIAN")
-    expect(result).toContain("claim tetap terbuka")
+    expect(result).toContain("PARTIAL")
+    expect(result).toContain("claim stays open")
     expect(readFileSync(target, "utf-8")).toContain("export function add")
 
     const claim = loadClaims()
@@ -284,18 +284,18 @@ describe("submitClaim", () => {
     openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [target],
     })
 
     const qa = [
-      { question: "q1", answer: "karena error akan muncul", score: "correct" as const },
-      { question: "q2", answer: "maka hasilnya berubah", score: "correct" as const },
+      { question: "q1", answer: "because an error will appear", score: "correct" as const },
+      { question: "q2", answer: "so the result changes", score: "correct" as const },
     ]
     const result = submitClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       verdict: "pass",
       level: "mid",
       qa,
@@ -312,23 +312,23 @@ describe("submitClaim", () => {
     openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [target],
     })
 
     const result = submitClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       verdict: "pass",
       qa: [
-        { question: "q1", answer: "iya paham", score: "partial" as const },
-        { question: "q2", answer: "iya paham", score: "partial" as const },
+        { question: "q1", answer: "i understand", score: "partial" as const },
+        { question: "q2", answer: "i understand", score: "partial" as const },
       ],
     })
 
     expect(result).toContain("confidence 50/100")
-    expect(result).toContain("memantau")
+    expect(result).toContain("monitoring")
   })
 
   it("keeps claim open across a fail then closes it on a final pass", () => {
@@ -336,24 +336,24 @@ describe("submitClaim", () => {
     openClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       files: [target],
     })
-    submitClaim({ projectDir: tmpDir, projectName, itemName: "Buat fungsi add", verdict: "fail" })
+    submitClaim({ projectDir: tmpDir, projectName, itemName: "Build add function", verdict: "fail" })
     expect(loadClaims()?.attempts).toBe(1)
     expect(loadClaims()?.status).toBe("open")
 
     const final = submitClaim({
       projectDir: tmpDir,
       projectName,
-      itemName: "Buat fungsi add",
+      itemName: "Build add function",
       verdict: "pass",
       qa: [
-        { question: "q1", answer: "karena error handling", score: "correct" as const },
-        { question: "q2", answer: "maka saya tambah fallback", score: "correct" as const },
+        { question: "q1", answer: "because of the error handling", score: "correct" as const },
+        { question: "q2", answer: "so i add a fallback", score: "correct" as const },
       ],
     })
-    expect(final).toContain("di-claim")
+    expect(final).toContain("claimed!")
     expect(loadClaims()?.status).toBe("claimed")
   })
 })

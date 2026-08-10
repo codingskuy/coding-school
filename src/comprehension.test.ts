@@ -78,11 +78,11 @@ describe("scoreAnswer", () => {
   })
 
   it("marks demonstration answers as correct", () => {
-    expect(scoreAnswer("karena input yang salah, maka kodenya akan error", "q")).toBe("correct")
+    expect(scoreAnswer("because the input is wrong, the code will error", "q")).toBe("correct")
   })
 
   it("marks vague/parroted answers as partial or incorrect", () => {
-    expect(scoreAnswer("iya saya paham", "q")).toBe("partial")
-    expect(scoreAnswer("tidak tahu", "q")).toBe("incorrect")
+    expect(scoreAnswer("i understand", "q")).toBe("partial")
+    expect(scoreAnswer("i don't know", "q")).toBe("incorrect")
   })
 })

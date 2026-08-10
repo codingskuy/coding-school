@@ -419,7 +419,7 @@ Coach writes code like a build agent, but the code is **not final until the user
 
 1. Coach calls `cs_claim_open` — snapshots the current state of every target file (new + existing).
 2. Coach writes the generated code.
-3. Coach asks **3-5 probing questions, multi-turn** (e.g. "Jelaskan baris X pakai bahasamu sendiri", then follow-ups tuned to the answers). Question banks scale with engineering level (junior → mid → senior).
+3. Coach asks **3-5 probing questions, multi-turn** (e.g. "Explain line X in your own words", then follow-ups tuned to the answers). Question banks scale with engineering level (junior → mid → senior).
 4. Coach scores each answer (`correct` / `partial` / `incorrect`) and records them in the `qa` argument of `cs_claim_submit`. Aggregate confidence = 70% average + 30% weakest answer, so one lucky guess can't carry the gate.
 5. Verdict via `cs_claim_submit`:
    - **`pass`** (confidence ≥ 75) — user proved understanding → code stays, timeline item → `done`, engineering competency bumps. A `pass` under 75 adds a note to keep watching that area.

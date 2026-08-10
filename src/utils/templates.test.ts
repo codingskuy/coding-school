@@ -83,8 +83,8 @@ describe("roadmapConfirmPrompt", () => {
   it("instructs model to show roadmap and ask confirmation", () => {
     const prompt = roadmapConfirmPrompt()
     expect(prompt).toContain("question")
-    expect(prompt).toContain("Setuju, lanjut belajar")
-    expect(prompt).toContain("Ada koreksi, regenerate roadmap")
+    expect(prompt).toContain("I agree, let's continue learning")
+    expect(prompt).toContain("I have corrections, regenerate the roadmap")
   })
 })
 

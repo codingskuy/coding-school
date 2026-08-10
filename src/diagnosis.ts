@@ -119,20 +119,20 @@ function applyDiagnosisResponses(
 
 function normalizeLevel(raw: string): LearningLevel {
   const lower = raw.toLowerCase().trim()
-  if (/beginner|pemula|baru|new/.test(lower)) return "beginner"
-  if (/foundation|dasar|basic/.test(lower)) return "foundation"
-  if (/intermediate|menengah|sedang/.test(lower)) return "intermediate"
-  if (/advanced|lanjut|mahir/.test(lower)) return "advanced"
-  if (/expert|ahli|master/.test(lower)) return "expert"
+  if (/beginner|new/.test(lower)) return "beginner"
+  if (/foundation|basic/.test(lower)) return "foundation"
+  if (/intermediate/.test(lower)) return "intermediate"
+  if (/advanced/.test(lower)) return "advanced"
+  if (/expert|master/.test(lower)) return "expert"
   return "beginner"
 }
 
 function parseSelfAssessment(raw: string): number {
   const lower = raw.toLowerCase().trim()
-  if (/sangat|banget|expert|master|ahli|10|9/.test(lower)) return 90
-  if (/cukup|lumayan|understand|paham|7|8/.test(lower)) return 70
-  if (/sedikit|dasar|beginner|baru|4|5|6/.test(lower)) return 45
-  if (/tidak|nol|zero|0|1|2|3/.test(lower)) return 15
+  if (/expert|master|10|9/.test(lower)) return 90
+  if (/understand|comfortable|7|8/.test(lower)) return 70
+  if (/basic|beginner|some|4|5|6/.test(lower)) return 45
+  if (/zero|none|0|1|2|3/.test(lower)) return 15
   return 50
 }
 
@@ -144,10 +144,10 @@ function detectPriorExperienceMisconceptions(
   const lower = experience.toLowerCase()
 
   const misconceptionPatterns: Array<{ pattern: RegExp; description: string }> = [
-    { pattern: /semua.*sama|identik|mirip|all.*same|no.*difference|identical/, description: "Assumes all concepts in this topic are identical" },
-    { pattern: /tidak.*perlu|gak.*penting|not.*necessary|don'?t.*need|skip.*theory/, description: "Thinks certain fundamentals are unnecessary" },
-    { pattern: /langsung.*code|skip.*theory|just.*code|skip.*to.*code/, description: "Prefers skipping theory to code directly" },
-    { pattern: /sudah.*tahu|udah.*paham.*semua|already.*know.*everything|know.*it.*all/, description: "May overestimate understanding" },
+    { pattern: /all.*same|no.*difference|identical/, description: "Assumes all concepts in this topic are identical" },
+    { pattern: /not.*necessary|don'?t.*need|skip.*theory/, description: "Thinks certain fundamentals are unnecessary" },
+    { pattern: /just.*code|skip.*to.*code/, description: "Prefers skipping theory to code directly" },
+    { pattern: /already.*know.*everything|know.*it.*all/, description: "May overestimate understanding" },
   ]
 
   for (const { pattern, description } of misconceptionPatterns) {

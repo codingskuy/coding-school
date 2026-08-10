@@ -37,17 +37,17 @@ export interface SubmitClaimOptions {
 export const ENGINEERING_LEVELS: Record<EngineeringLevel, { label: string; description: string; bump: number }> = {
   junior: {
     label: "Junior",
-    description: "solusi sederhana dan mudah dibaca: satu konsep per langkah, sedikit bagian, komentar ramah pemula",
+    description: "simple, readable solution: one concept per step, few parts, beginner-friendly comments",
     bump: 2,
   },
   mid: {
     label: "Mid",
-    description: "solusi idiomatic dan terstruktur: fungsi kecil yang jelas, penamaan yang baik, alur yang rapi",
+    description: "idiomatic, structured solution: clear small functions, good naming, clean flow",
     bump: 4,
   },
   senior: {
     label: "Senior",
-    description: "solusi robust: error handling, validasi input, best practices, mudah dirawat dan diextend",
+    description: "robust solution: error handling, input validation, best practices, maintainable and extensible",
     bump: 6,
   },
 }
@@ -85,11 +85,11 @@ export function openClaim(options: OpenClaimOptions): string {
   }
 
   writeJson(claimPath(projectDir, projectName), claim)
-  updateTimelineItem({ projectDir, projectName, itemName, status: "in-progress", notes: "Menunggu user membuktikan pemahaman (comprehension gate)." })
+  updateTimelineItem({ projectDir, projectName, itemName, status: "in-progress", notes: "Awaiting user's comprehension proof (comprehension gate)." })
 
-  return `Claim dibuka untuk "${itemName}". Kondisi awal ${claim.files.length} file tersimpan (${claim.files.filter(f => f.existed).length} lama, ${claim.files.filter(f => !f.existed).length} baru).
+  return `Claim opened for "${itemName}". Initial state of ${claim.files.length} file(s) saved (${claim.files.filter(f => f.existed).length} existing, ${claim.files.filter(f => !f.existed).length} new).
 
-Timeline item kini "in-progress". Sekarang: tulis kode ke file-file tersebut, lalu jalankan comprehension gate (2-3 pertanyaan). Kode hanya final saat user "claim" (pass).`
+Timeline item is now "in-progress". Next: write code to those files, then run the comprehension gate (3-5 questions). Code is only final once the user "claims" it (pass).`
 }
 
 export function submitClaim(options: SubmitClaimOptions): string {
@@ -97,13 +97,13 @@ export function submitClaim(options: SubmitClaimOptions): string {
   const claim = loadClaims(projectDir, projectName)
 
   if (!claim) {
-    return `Tidak ada claim yang terbuka. Buka dulu dengan cs_claim_open untuk item "${itemName}".`
+    return `No open claim found. Open one first with cs_claim_open for item "${itemName}".`
   }
   if (claim.status !== "open") {
-    return `Claim untuk "${claim.item}" sudah diselesaikan (status: ${claim.status}).`
+    return `Claim for "${claim.item}" is already resolved (status: ${claim.status}).`
   }
   if (claim.item !== itemName) {
-    return `Claim yang terbuka adalah untuk "${claim.item}", bukan "${itemName}".`
+    return `The open claim is for "${claim.item}", not "${itemName}".`
   }
 
   // Multi-turn grading: persist per-question evidence + aggregate confidence.
@@ -126,16 +126,16 @@ export function submitClaim(options: SubmitClaimOptions): string {
       .slice(0, 3)
       .map(q => `- ${q.question}`)
       .join("\n")
-    return `Pemahaman belum terbukti (percobaan ke-${claim.attempts}, confidence ${claim.confidence}/100).
+    return `Understanding not yet proven (attempt ${claim.attempts}, confidence ${claim.confidence}/100).
 
-Jelaskan ulang di level **${ENGINEERING_LEVELS[level].label}** dengan bahasa sederhana — ${ENGINEERING_LEVELS[level].description}.
+Re-explain at level **${ENGINEERING_LEVELS[level].label}** in simple language — ${ENGINEERING_LEVELS[level].description}.
 
-Pertanyaan probing level ${ENGINEERING_LEVELS[level].label} untuk percobaan berikutnya:
+Probing questions at level ${ENGINEERING_LEVELS[level].label} for the next attempt:
 ${nextQuestions}
 
-Lalu tanya via question tool: "Mau coba lagi, atau saya tarik kodenya (revert)?"
-- Coba lagi → jawab pertanyaan comprehension baru (catat jawabannya di arg qa saat cs_claim_submit).
-- Revert → panggil cs_claim_submit dengan verdict="revert".`
+Then ask via the question tool: "Try again, or should I pull the code (revert)?"
+- Try again → answer the new comprehension questions (record the answers in the qa argument of cs_claim_submit).
+- Revert → call cs_claim_submit with verdict="revert".`
   }
 
   if (verdict === "revert") {
@@ -148,10 +148,10 @@ Lalu tanya via question tool: "Mau coba lagi, atau saya tarik kodenya (revert)?"
       projectName,
       itemName,
       status: "todo",
-      notes: options.notes || "Reverted — user belum bisa membuktikan pemahaman atas kode yang digenerate.",
+      notes: options.notes || "Reverted — user could not prove understanding of the generated code.",
     })
-    return `Kode ditarik. ${claim.files.length} file dikembalikan ke kondisi awal (baru dihapus, lama direstore).
-Timeline item "${itemName}" kembali ke "todo". (Confidence saat gate: ${claim.confidence}/100)`
+    return `Code pulled back. ${claim.files.length} file(s) restored to their original state (new ones deleted, existing ones restored).
+Timeline item "${itemName}" is back to "todo". (Gate confidence: ${claim.confidence}/100)`
   }
 
   if (verdict === "partial-pass-continue") {
@@ -164,17 +164,17 @@ Timeline item "${itemName}" kembali ke "todo". (Confidence saat gate: ${claim.co
       status: "in-progress",
       notes:
         options.notes ||
-        `Pass sebagian (confidence ${claim.confidence}/100) — kode dipertahankan, lanjutkan dengan pengawasan.`,
+        `Partial pass (confidence ${claim.confidence}/100) — code kept, continue with supervision.`,
     })
     const weakAnswers = claim.qaHistory.filter(q => q.score !== "correct")
     const focus = weakAnswers.length > 0
-      ? `Fokus perbaiki: ${weakAnswers.slice(0, 3).map(q => `"${truncate(q.question, 60)}"`).join(", ")}`
-      : "Lanjutkan ke item berikutnya dengan memantau pemahaman."
-    return `Pass SEBAGIAN (confidence ${claim.confidence}/100) — di bawah ambang 75.
+      ? `Focus on fixing: ${weakAnswers.slice(0, 3).map(q => `"${truncate(q.question, 60)}"`).join(", ")}`
+      : "Move on to the next item while keeping an eye on understanding."
+    return `PARTIAL pass (confidence ${claim.confidence}/100) — below the threshold of 75.
 
-Kode dipertahankan, claim tetap terbuka. Timeline item "${itemName}" tetap "in-progress".
+Code is kept, claim stays open. Timeline item "${itemName}" stays "in-progress".
 ${focus}
-Setelah siswa memperkuat pemahaman, panggil cs_claim_submit lagi dengan verdict="pass" (atau "revert" jika gagal lagi).`
+Once the student strengthens their understanding, call cs_claim_submit again with verdict="pass" (or "revert" if they fail again).`
   }
 
   const level = options.level ?? "junior"
@@ -189,14 +189,14 @@ Setelah siswa memperkuat pemahaman, panggil cs_claim_submit lagi dengan verdict=
     projectName,
     itemName,
     status: "done",
-    notes: options.notes || `Claimed di level ${ENGINEERING_LEVELS[level].label} (confidence ${claim.confidence}/100).`,
+    notes: options.notes || `Claimed at level ${ENGINEERING_LEVELS[level].label} (confidence ${claim.confidence}/100).`,
   })
   const lowConfidenceNote =
     claim.confidence > 0 && claim.confidence < 75
-      ? `\n\n⚠️ Confidence ${claim.confidence}/100 < 75 — Coach sebaiknya memantau pemahaman ini di review berikutnya.`
+      ? `\n\n⚠️ Confidence ${claim.confidence}/100 < 75 — Coach should keep monitoring this understanding in the next review.`
       : ""
-  return `Kode di-claim! User berhasil membuktikan pemahaman di level **${ENGINEERING_LEVELS[level].label}** (confidence ${claim.confidence}/100).
-Engineering competency diperbarui. Timeline item "${itemName}" selesai (done).${lowConfidenceNote}`
+  return `Code claimed! The user proved understanding at level **${ENGINEERING_LEVELS[level].label}** (confidence ${claim.confidence}/100).
+Engineering competency updated. Timeline item "${itemName}" is done.${lowConfidenceNote}`
 }
 
 export function updateEngineeringFromClaim(projectDir: string, level: EngineeringLevel): void {

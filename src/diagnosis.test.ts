@@ -69,14 +69,14 @@ describe("diagnoseStudent", () => {
 })
 
 describe("normalizeLevel", () => {
-  test("handles Indonesian terms", () => {
-    const r1 = diagnoseStudent("X", { level: "pemula" })
+  test("maps English level terms", () => {
+    const r1 = diagnoseStudent("X", { level: "beginner" })
     expect(r1.model.currentLevel).toBe("beginner")
 
-    const r2 = diagnoseStudent("X", { level: "dasar" })
+    const r2 = diagnoseStudent("X", { level: "basic" })
     expect(r2.model.currentLevel).toBe("foundation")
 
-    const r3 = diagnoseStudent("X", { level: "lanjut" })
+    const r3 = diagnoseStudent("X", { level: "advanced" })
     expect(r3.model.currentLevel).toBe("advanced")
   })
 

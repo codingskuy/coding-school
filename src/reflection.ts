@@ -150,27 +150,27 @@ export function detectMisconceptionsFromReflection(
     severity: "critical" | "warning" | "info"
   }> = [
     {
-      pattern: /semua.*sama|identik|gak.*beda|all.*same|no.*difference|all.*identical/,
+      pattern: /all.*same|no.*difference|all.*identical/,
       description: "Cannot distinguish between related concepts",
       severity: "critical",
     },
     {
-      pattern: /tidak.*penting|gak.*perlu|not.*important|skip.*theory|don'?t.*need/,
+      pattern: /not.*important|skip.*theory|don'?t.*need/,
       description: "Dismisses important fundamentals",
       severity: "warning",
     },
     {
-      pattern: /selalu.*benar|tidak.*pernah.*salah|always.*right|never.*wrong|never.*mistake/,
+      pattern: /always.*right|never.*wrong|never.*mistake/,
       description: "Overconfident — doesn't recognize edge cases",
       severity: "warning",
     },
     {
-      pattern: /hafal|rumus|template|memorize|just.*remember|rote/,
+      pattern: /memorize|just.*remember|rote/,
       description: "Relies on memorization rather than understanding",
       severity: "warning",
     },
     {
-      pattern: /bingung.*kapan|tidak.*tahu.*kapan|when.*to.*use|don'?t.*know.*when/,
+      pattern: /when.*to.*use|don'?t.*know.*when/,
       description: "Unsure when to apply concepts",
       severity: "info",
     },
