@@ -1,6 +1,6 @@
 {
   "name": "@codingskuy/coding-school",
-  "version": "2.1.2",
+  "version": "2.2.0",
   "description": "CodingSchool — Dual-agent AI Engineering Mentor plugin for OpenCode. Teacher agent (student diagnosis, scaffolding, competency tracking) + Coach agent (code review, architecture, GRC, project timeline).",
   "type": "module",
   "bin": {
