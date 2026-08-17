@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
 
-import { createRoadmap, normalizeRoadmapContent, listRoadmapItems } from "./generator"
+import { createRoadmap, normalizeRoadmapContent, listRoadmapItems, isPhaseProjectItem, isCapstoneSection } from "./generator"
 
 let tmpDir: string
 
@@ -205,5 +205,43 @@ describe("createRoadmap", () => {
     const { readFileSync } = require("fs")
     const progress = JSON.parse(readFileSync(join(tmpDir, ".codingschool", "progress.json"), "utf-8"))
     expect(progress.topics.Rust.theory).toHaveLength(3)
+  })
+})
+
+describe("isPhaseProjectItem", () => {
+  it("matches 'Proyek N: ...' pattern", () => {
+    expect(isPhaseProjectItem("Proyek 1: Kalkulator Tip")).toBe(true)
+    expect(isPhaseProjectItem("Proyek 3: Layar Profil XML")).toBe(true)
+  })
+
+  it("matches 'Project N: ...' pattern", () => {
+    expect(isPhaseProjectItem("Project 2: To-Do List")).toBe(true)
+  })
+
+  it("matches items with rocket emoji", () => {
+    expect(isPhaseProjectItem("Build a REST API 🚀")).toBe(true)
+    expect(isPhaseProjectItem("Proyek 5: Aplikasi Cuaca 🚀")).toBe(true)
+  })
+
+  it("does not match regular items", () => {
+    expect(isPhaseProjectItem("Variables & Mutability")).toBe(false)
+    expect(isPhaseProjectItem("Quiz 1 — Rust fundamentals")).toBe(false)
+    expect(isPhaseProjectItem("Proyek Final: App Portofolio")).toBe(false)
+  })
+})
+
+describe("isCapstoneSection", () => {
+  it("matches capstone sections", () => {
+    expect(isCapstoneSection("Final Project")).toBe(true)
+    expect(isCapstoneSection("Capstone")).toBe(true)
+    expect(isCapstoneSection("Proyek Final")).toBe(true)
+    expect(isCapstoneSection("Proyek Portofolio")).toBe(true)
+  })
+
+  it("does not match phase sections", () => {
+    expect(isCapstoneSection("Tahap 1: Proyek Pertama")).toBe(false)
+    expect(isCapstoneSection("Phase 2: List & Navigasi")).toBe(false)
+    expect(isCapstoneSection("Theory")).toBe(false)
+    expect(isCapstoneSection("Practice")).toBe(false)
   })
 })

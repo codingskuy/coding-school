@@ -19,7 +19,7 @@ import {
 } from "./coach"
 import { openClaim, submitClaim, hasOpenClaim } from "./coach-gate"
 import { detectIntent, onboardingMessage, roadmapConfirmPrompt } from "./utils/templates"
-import { createRoadmap, listRoadmapItems } from "./roadmap/generator"
+import { createRoadmap, listRoadmapItems, isPhaseProjectItem, isCapstoneSection } from "./roadmap/generator"
 import { getProgress, updateProgress, renderDashboard } from "./progress/tracker"
 import { assessQuiz, renderAssessment, saveAssessment } from "./assessment/engine"
 import { resumeSession, createOrUpdateSession, getLatestSessionInfo } from "./session/resume"
@@ -238,34 +238,77 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
 
       cs_prepare_capstone: tool({
         description:
-          "Hand the roadmap's Final Project (capstone) to the Coach agent. Call when all non-capstone items are done or the student wants to start their capstone. Reads the ## Final Project section from the roadmap and flags it as ready for the Coach agent.",
+          "Hand a roadmap project (phase project or final capstone) to the Coach agent. For phase projects: call when all learning items before the project are done. For capstone: call when all non-capstone items are done. Reads project items from the roadmap and flags them as ready for the Coach agent.",
         args: {
           topic: tool.schema.string(),
+          type: tool.schema.enum(["phase", "capstone"]).optional(),
+          phaseLabel: tool.schema.string().optional(),
+          projectName: tool.schema.string().optional(),
         },
         async execute(args) {
           const items = listRoadmapItems(projectDir, args.topic)
           if (items.length === 0) {
             return `No roadmap found for topic "${args.topic}". Create a roadmap first with cs_create_roadmap.`
           }
-          const capstone = items.filter(i =>
-            ["final project", "capstone", "project"].includes(i.section.toLowerCase()),
-          )
-          if (capstone.length === 0) {
-            return `No "## Final Project" section found in the roadmap for "${args.topic}". Add a Final Project section, then try again.`
-          }
-          const capItems = capstone.map(i => i.text)
-          announceCapstone(projectDir, { topic: args.topic, items: capItems, ready: true })
-          recordTool(projectDir, { toolName: "cs_prepare_capstone", topic: args.topic })
-          const projectName = capItems[0]
-          return `Capstone prepared for the Coach agent.
+          const projectType = args.type ?? "capstone"
 
-Project: **${projectName}** (from topic "${args.topic}" roadmap)
+          if (projectType === "capstone") {
+            const capstone = items.filter(i => isCapstoneSection(i.section))
+            if (capstone.length === 0) {
+              return `No "## Final Project" section found in the roadmap for "${args.topic}". Add a Final Project section, then try again.`
+            }
+            const capItems = capstone.map(i => i.text)
+            announceCapstone(projectDir, {
+              topic: args.topic,
+              items: capItems,
+              ready: true,
+              type: "capstone",
+              projectName: args.projectName ?? capItems[0],
+            })
+            recordTool(projectDir, { toolName: "cs_prepare_capstone", topic: args.topic })
+            const projName = args.projectName ?? capItems[0]
+            return `Capstone prepared for the Coach agent.
+
+Project: **${projName}** (from topic "${args.topic}" roadmap)
 Checklist:
 ${capItems.map(i => `- [ ] ${i}`).join("\n")}
 
 The Coach agent will see this capstone briefing when it starts. Tell the student:
-"Bagus sekali! Sekarang pindah ke agent **Coach** (dropdown agent, atau \`opencode --agent coach\`) untuk membangun proyek capstone: **${projectName}**. Coach akan memandu dari perencanaan sampai proyek selesai."
+"Bagus sekali! Sekarang pindah ke agent **Coach** (dropdown agent, atau \`opencode --agent coach\`) untuk membangun proyek capstone: **${projName}**. Coach akan memandu dari perencanaan sampai proyek selesai."
 (Do NOT mark Final Project items as done here — Coach completes them.)`
+          }
+
+          // Phase project
+          const phaseProjects = items.filter(i =>
+            !isCapstoneSection(i.section) && isPhaseProjectItem(i.text),
+          )
+          if (phaseProjects.length === 0) {
+            return `No phase project items (e.g. "Proyek N: ..." or 🚀) found in the roadmap for "${args.topic}".`
+          }
+          const unchecked = phaseProjects.filter(i => !i.checked)
+          if (unchecked.length === 0) {
+            return `All phase projects are already completed!`
+          }
+          const target = unchecked[0]
+          const projName = args.projectName ?? target.text
+          const phaseLabel = args.phaseLabel ?? target.section
+          announceCapstone(projectDir, {
+            topic: args.topic,
+            items: [target.text],
+            ready: true,
+            type: "phase",
+            projectName: projName,
+            phaseLabel,
+          })
+          recordTool(projectDir, { toolName: "cs_prepare_capstone", topic: args.topic })
+          return `Phase project prepared for the Coach agent.
+
+Project: **${projName}** (${phaseLabel})
+Section: ${target.section}
+
+The Coach agent will see this project briefing when it starts. Tell the student:
+"Bagus! Semua materi ${phaseLabel} sudah selesai. Sekarang pindah ke agent **Coach** (dropdown agent, atau \`opencode --agent coach\`) untuk mengerjakan proyek: **${projName}**. Coach akan memandu dari perencanaan sampai proyek selesai, lalu kamu kembali ke Teacher untuk lanjut ke phase berikutnya."
+(Do NOT mark phase project items as done here — Coach completes them.)`
         },
       }),
 
@@ -731,7 +774,7 @@ Continue learning or start a new topic?`
 
       cs_announce_project_complete: tool({
         description:
-          "Record a finished project so the Teacher agent can close the roadmap (mark the Final Project items done). Call at the end of a project when all milestones are done; pass a summary of what was built.",
+          "Record a finished project (phase project or capstone) so the Teacher agent can continue the roadmap. Call at the end of a project when all milestones are done; pass a summary of what was built.",
         args: {
           projectName: tool.schema.string(),
           topic: tool.schema.string().optional(),
@@ -744,10 +787,10 @@ Continue learning or start a new topic?`
             summary: args.summary,
           })
           recordTool(projectDir, { toolName: "cs_announce_project_complete", projectName: args.projectName })
-          return `Project completion recorded. The Teacher agent will see it and close the roadmap.
+          return `Project completion recorded. The Teacher agent will see it and continue the roadmap.
 
 Tell the student:
-"Kerja bagus! Proyek **${args.projectName}** sudah selesai. Sekarang pindah kembali ke agent **Teacher** (dropdown agent, atau \`opencode --agent teacher\`) untuk menutup roadmap dan refleksi akhir."`
+"Kerja bagus! Proyek **${args.projectName}** sudah selesai. Sekarang pindah kembali ke agent **Teacher** (dropdown agent, atau \`opencode --agent teacher\`) untuk menandai proyek selesai dan lanjut ke materi berikutnya."`
         },
       }),
 
@@ -921,7 +964,7 @@ AVAILABLE TOOLS:
 - cs_list_roadmap_items: List all items in a roadmap with checkbox status. Use BEFORE cs_update_progress to find exact item text.
 - cs_update_progress: Mark items done to track progress and award XP.
 - cs_assess_quiz: Evaluate answers with a 5-dimension rubric (recall, comprehension, application, analysis, creation).
-- cs_prepare_capstone: Hand the roadmap's Final Project (capstone) to the Coach agent. Call when non-capstone items are done.
+- cs_prepare_capstone: Hand a roadmap project (phase project or capstone) to the Coach agent. Use type="phase" for phase projects, type="capstone" for the final project.
 - cs_resume_session: Resume the last checkpoint.
 
 CHECKPOINT WORKFLOW (MANDATORY):
@@ -939,13 +982,20 @@ Example:
   topic="java programming", item="Variables & Data Types", status="done",
   notes="**Theory:**\nVariables store data. Data types: int, String, boolean.\n\n**Practice:**\nint age = 25;\nString name = \"Andi\";"
 
-CAPSTONE HANDOFF (MANDATORY):
-The roadmap's "Final Project" section is the student's CAPSTONE. It is built with the Coach agent, not with you.
-1. When every non-capstone item is done (or the student asks to start their capstone), call cs_list_roadmap_items to confirm what remains.
-2. Call cs_prepare_capstone(topic="...") to hand the capstone to the Coach.
+PROJECT HANDOFF (MANDATORY — Phase Projects & Capstone):
+The roadmap may contain multiple projects: phase-level projects (e.g. "Proyek 1: Kalkulator Tip 🚀") inside each phase, and a final capstone at the end. ALL projects are built with the Coach agent, not with you.
+
+PHASE PROJECT FLOW:
+1. After teaching all learning items in a phase, check cs_list_roadmap_items for unchecked project items (containing "Proyek N:" or 🚀) in that phase.
+2. When all items BEFORE a phase project are done, call cs_prepare_capstone(topic="...", type="phase", phaseLabel="Tahap N", projectName="...") to hand it to the Coach.
 3. Tell the student to SWITCH to the Coach agent: open the agent dropdown and pick "coach", or run \`opencode --agent coach\`.
-4. Do NOT call cs_update_progress on any Final Project item. The Coach completes the capstone; you mark it done ONLY after the student returns with the finished project.
-- Keep your Training Roadmap theory/practice teaching for the non-capstone items.
+4. Do NOT call cs_update_progress on any phase project item. The Coach completes it; you mark it done ONLY after the student returns.
+
+CAPSTONE FLOW:
+1. When every non-capstone item is done (or the student asks to start their capstone), call cs_list_roadmap_items to confirm what remains.
+2. Call cs_prepare_capstone(topic="...", type="capstone") to hand the capstone to the Coach.
+3. Tell the student to SWITCH to the Coach agent.
+4. Do NOT call cs_update_progress on any Final Project item. The Coach completes the capstone; you mark it done ONLY after the student returns.
 
 DIAGNOSIS-FIRST WORKFLOW:
 1. When a student wants to learn a topic, call cs_diagnose_student FIRST
@@ -1001,7 +1051,10 @@ CRITICAL RULES:
     c) Use the "question" tool to ask if they want to try coding it themselves
     d) Only mark as done via cs_update_progress AFTER the student has practiced
     Never skip practice. Theory without practice is incomplete learning.
-13. CAPSTONE RETURN (MANDATORY): When the student comes back from the Coach with a finished capstone, read the "Context from Coach" signal. Then mark every Final Project item done via cs_update_progress, using the Coach's project summary as the \`notes\` for the handbook, celebrate the milestone, and run a closing reflection (cs_reflect, type="after-challenge").`
+13. PROJECT RETURN (MANDATORY): When the student comes back from the Coach with a finished project, read the "Context from Coach" signal. Then:
+    a) Mark the project items done via cs_update_progress, using the Coach's project summary as the \`notes\` for the handbook.
+    b) If this was a PHASE project: call cs_list_roadmap_items, find the next incomplete phase, and continue teaching from there.
+    c) If this was the CAPSTONE (Final Project): celebrate the milestone, and run a closing reflection (cs_reflect, type="after-challenge").`
 
 const COACH_SYSTEM_PROMPT = `You are Coach — a software engineering project mentor & guide with GRC (Governance, Risk, Compliance) awareness. You guide users through real-industry project development from planning to completion.
 
@@ -1020,12 +1073,17 @@ PHASES:
 - REVIEW & ITERATE: Code review, GRC scan, engineering competency updates, timeline tracking
 - COMPLETION & HANDOFF: Final review, mark project complete, send the student back to the Teacher agent
 
-CAPSTONE ENTRY:
-- When the student arrives from the Teacher agent, read the Coach briefing (cs_claim_open output / shared context). If it contains a CAPSTONE PROJECT READY block, THAT is the project to build — seed Phase 1 with it:
+CAPSTONE ENTRY (phase projects & final capstone):
+- When the student arrives from the Teacher agent, read the Coach briefing (cs_claim_open output / shared context).
+- If it contains a PHASE PROJECT READY block: that's a phase-level project — smaller scope, focused on applying the current phase's concepts. Seed Phase 1 with it:
+  - projectName ← the phase project item text
+  - description ← built from the phase's learning context
+  - milestones ← your professional breakdown (smaller than a capstone)
+- If it contains a CAPSTONE PROJECT READY block: that's the final capstone — larger scope, comprehensive. Seed Phase 1 with it:
   - projectName ← the capstone item text
   - description ← built from the roadmap topic + capstone checklist
-  - milestones ← your professional breakdown of the capstone
-- If no capstone briefing exists, follow the normal "user mentions a project idea" flow.
+  - milestones ← your professional breakdown of the full capstone
+- If no project briefing exists, follow the normal "user mentions a project idea" flow.
 
 AVAILABLE TOOLS:
 === Mentor & Review Tools ===
@@ -1046,7 +1104,7 @@ AVAILABLE TOOLS:
 - cs_timeline_update: Update the status of any item (todo, in-progress, done, blocked) with optional notes.
 - cs_timeline_list: Show the full project timeline tree with all statuses and progress.
 - cs_project_scaffold: Generate folder structure. Only call AFTER user approval.
-- cs_announce_project_complete: Record a finished project so the Teacher can close the roadmap. Call at the end, after the final review.
+- cs_announce_project_complete: Record a finished project (phase project or capstone) so the Teacher can continue the roadmap. Call at the end, after the final review.
 
 8 ENGINEERING COMPETENCIES:
 1. Code Quality — naming, structure, DRY, clean code

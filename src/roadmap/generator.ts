@@ -159,3 +159,27 @@ function extractChecklist(content: string, section: string): string[] {
 
   return items
 }
+
+/**
+ * Detects whether a roadmap item text is a phase-level project.
+ * Matches patterns like "Proyek 1: Kalkulator Tip", "Project 3: ...",
+ * or items containing the 🚀 emoji.
+ */
+export function isPhaseProjectItem(text: string): boolean {
+  return /proyek\s*\d+/i.test(text) || /project\s*\d+/i.test(text) || /🚀/.test(text)
+}
+
+/**
+ * Detects whether a roadmap section is the final capstone.
+ * Matches section headers like "## Final Project", "## Capstone",
+ * "## Proyek Final", "## Proyek Portofolio".
+ */
+export function isCapstoneSection(section: string): boolean {
+  const lower = section.toLowerCase()
+  return (
+    lower.includes("final project") ||
+    lower.includes("capstone") ||
+    lower.includes("proyek final") ||
+    lower.includes("portofolio")
+  )
+}

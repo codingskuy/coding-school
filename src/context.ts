@@ -20,10 +20,13 @@ export interface TeacherInsights {
   lastDiagnosedAt?: string
 }
 
-export interface CapstoneBrief {
+export interface PendingProject {
   topic: string
   items: string[]
   ready: boolean
+  type: "phase" | "capstone"
+  projectName?: string
+  phaseLabel?: string
 }
 
 export interface CoachFindings {
@@ -32,7 +35,7 @@ export interface CoachFindings {
   readiness?: EngineeringLevel
   lastReviewAt?: string
   lastClaimLevel?: EngineeringLevel
-  pendingCapstone?: CapstoneBrief
+  pendingCapstone?: PendingProject
   completedProject?: { projectName: string; topic?: string; summary: string }
 }
 
@@ -157,7 +160,10 @@ export function getTeachingSignals(projectDir: string): string[] {
   if (ctx.coach.completedProject) {
     const proj = ctx.coach.completedProject
     lines.push(
-      `Student finished the project "${proj.projectName}" with Coach. Close the roadmap: mark the Final Project items done via cs_update_progress (use this summary as notes).\nProject summary: ${proj.summary}`,
+      `Student finished the project "${proj.projectName}" with Coach. ` +
+        `Mark the project items done via cs_update_progress (use this summary as notes), ` +
+        `then auto-detect the next incomplete phase from the roadmap and continue teaching.\n` +
+        `Project summary: ${proj.summary}`,
     )
   }
 
@@ -176,13 +182,17 @@ export function getCoachBriefing(projectDir: string): string[] {
   }
   if (ctx.coach.pendingCapstone) {
     const cap = ctx.coach.pendingCapstone
+    const label = cap.type === "phase"
+      ? `PHASE PROJECT READY from Teacher's roadmap (topic: ${cap.topic}${cap.phaseLabel ? `, ${cap.phaseLabel}` : ""}).`
+      : `CAPSTONE PROJECT READY from Teacher's roadmap (topic: ${cap.topic}).`
     lines.push(
-      `CAPSTONE PROJECT READY from Teacher's roadmap (topic: ${cap.topic}).` +
+      label +
         (cap.ready
           ? ` Build it with the student using the professional project workflow.`
           : ` Still in progress with Teacher — do NOT build until Teacher says ready.`),
     )
-    lines.push(`Capstone roadmap items:\n- ${cap.items.join("\n- ")}`)
+    const name = cap.projectName ? `${cap.projectName}: ` : ""
+    lines.push(`Roadmap project items:\n- ${cap.items.map(i => `${name}${i}`).join("\n- ")}`)
   }
   if (ctx.teacher.misconceptions.length > 0) {
     lines.push(
@@ -194,12 +204,19 @@ export function getCoachBriefing(projectDir: string): string[] {
 }
 
 /**
- * Teacher marks the roadmap's Final Project section as a capstone ready for
- * the Coach agent. Flipping `currentPhase` to "project" signals the handoff.
+ * Teacher marks a roadmap project (phase project or final capstone) as ready
+ * for the Coach agent. Flipping `currentPhase` to "project" signals the handoff.
  */
 export function announceCapstone(
   projectDir: string,
-  input: { topic: string; items: string[]; ready: boolean },
+  input: {
+    topic: string
+    items: string[]
+    ready: boolean
+    type?: "phase" | "capstone"
+    projectName?: string
+    phaseLabel?: string
+  },
 ): void {
   const ctx = loadContext(projectDir)
   ctx.currentPhase = "project"
@@ -207,13 +224,17 @@ export function announceCapstone(
     topic: input.topic,
     items: input.items,
     ready: input.ready,
+    type: input.type ?? "capstone",
+    projectName: input.projectName,
+    phaseLabel: input.phaseLabel,
   }
   saveContext(projectDir, ctx)
 }
 
 /**
- * Coach announces a finished project so the Teacher can close the roadmap:
- * mark the Final Project items done and reflect with the student.
+ * Coach announces a finished project so the Teacher can continue:
+ * - Phase project: mark items done, then continue to next phase
+ * - Capstone: mark Final Project items done, close the roadmap
  */
 export function announceProjectComplete(
   projectDir: string,
@@ -226,6 +247,7 @@ export function announceProjectComplete(
     topic: input.topic,
     summary: input.summary,
   }
+  ctx.coach.pendingCapstone = undefined
   saveContext(projectDir, ctx)
 }
 

@@ -108,6 +108,7 @@ describe("announceCapstone", () => {
     expect(ctx.coach.pendingCapstone?.topic).toBe("Rust")
     expect(ctx.coach.pendingCapstone?.items).toEqual(["CLI Tool"])
     expect(ctx.coach.pendingCapstone?.ready).toBe(true)
+    expect(ctx.coach.pendingCapstone?.type).toBe("capstone")
   })
 
   it("surfaces the capstone in the Coach briefing", () => {
@@ -117,6 +118,37 @@ describe("announceCapstone", () => {
     expect(joined).toContain("CAPSTONE PROJECT READY")
     expect(joined).toContain("CLI Tool")
     expect(joined).toContain("Tests")
+  })
+
+  it("stores a phase project with type='phase'", () => {
+    announceCapstone(tmpDir, {
+      topic: "Android",
+      items: ["Proyek 1: Kalkulator Tip 🚀"],
+      ready: true,
+      type: "phase",
+      projectName: "Kalkulator Tip",
+      phaseLabel: "Tahap 1",
+    })
+    const ctx = loadContext(tmpDir)
+    expect(ctx.coach.pendingCapstone?.type).toBe("phase")
+    expect(ctx.coach.pendingCapstone?.projectName).toBe("Kalkulator Tip")
+    expect(ctx.coach.pendingCapstone?.phaseLabel).toBe("Tahap 1")
+  })
+
+  it("surfaces a phase project in the Coach briefing", () => {
+    announceCapstone(tmpDir, {
+      topic: "Android",
+      items: ["Proyek 1: Kalkulator Tip 🚀"],
+      ready: true,
+      type: "phase",
+      projectName: "Kalkulator Tip",
+      phaseLabel: "Tahap 1",
+    })
+    const briefing = getCoachBriefing(tmpDir)
+    const joined = briefing.join(" ")
+    expect(joined).toContain("PHASE PROJECT READY")
+    expect(joined).toContain("Tahap 1")
+    expect(joined).toContain("Kalkulator Tip")
   })
 })
 
@@ -134,8 +166,15 @@ describe("announceProjectComplete", () => {
     const signals = getTeachingSignals(tmpDir)
     const joined = signals.join(" ")
     expect(joined).toContain("Todo App")
-    expect(joined).toContain("Close the roadmap")
+    expect(joined).toContain("Mark the project items done")
     expect(joined).toContain("shipped the CRUD")
+  })
+
+  it("clears pendingCapstone after project completion", () => {
+    announceCapstone(tmpDir, { topic: "Rust", items: ["CLI Tool"], ready: true, type: "phase" })
+    expect(loadContext(tmpDir).coach.pendingCapstone).toBeDefined()
+    announceProjectComplete(tmpDir, { projectName: "CLI Tool", summary: "done" })
+    expect(loadContext(tmpDir).coach.pendingCapstone).toBeUndefined()
   })
 })
 
