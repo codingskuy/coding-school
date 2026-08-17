@@ -196,7 +196,15 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
           const notes = args.notes || ""
           const handbook = generateHandbook(projectDir, args.topic, args.item, notes, progress)
           const warningLines = warnings.map(w => `> ⚠️ ${w}`).join("\n")
-          return `${warningLines ? warningLines + "\n\n" : ""}Progress updated.\n\n${renderDashboard(progress)}\n\nHandbook updated: \`${handbook.topicPath}\``
+          const tp = Object.values(progress.topics).find(
+            t => t.name.toLowerCase() === args.topic.toLowerCase(),
+          )
+          const trackerLines = [
+            tp?.currentItem ? `Current: ${tp.currentItem}` : null,
+            tp?.lastCompletedItem ? `Last completed: ${tp.lastCompletedItem}` : null,
+          ].filter(Boolean)
+          const tracker = trackerLines.length > 0 ? `\n${trackerLines.join("\n")}` : ""
+          return `${warningLines ? warningLines + "\n\n" : ""}Progress updated.\n\n${renderDashboard(progress)}${tracker}\n\nHandbook updated: \`${handbook.topicPath}\``
         },
       }),
 
@@ -270,10 +278,14 @@ Continue learning or start a new topic?`
           const topics = Object.entries(progress.topics)
           if (topics.length > 0) {
             const lines = topics.map(([name, t]) => {
-              const nextItem = [...t.theory, ...t.practice].find(
-                i => !t.completedTheory.includes(i) && !t.completedPractice.includes(i),
-              )
-              return `- **${name}**: ${t.percent}% complete${nextItem ? `\n  Next: ${nextItem}` : t.percent === 100 ? "\n  ✅ COMPLETED" : ""}`
+              const current = t.currentItem
+              const last = t.lastCompletedItem
+              const detail = current
+                ? `\n  Current: ${current}${last ? `\n  Last completed: ${last}` : ""}`
+                : t.percent === 100
+                  ? "\n  ✅ COMPLETED"
+                  : ""
+              return `- **${name}**: ${t.percent}% complete${detail}`
             })
             const topicKeys = topics.map(([name]) => name)
             return `Found existing progress in progress.json:\n${lines.join("\n")}\n\nXP: ${progress.xp} | Level: ${progress.level}\n\nIMPORTANT: When calling cs_update_progress, use the EXACT topic key: "${topicKeys[0]}"\n\nContinue learning or start a new topic?`
@@ -310,7 +322,15 @@ Continue learning or start a new topic?`
           const total = items.length
           const pct = Math.round((checked.length / total) * 100)
 
-          return `## Roadmap: ${args.topic}\n${lines.join("\n")}\n\n---\nProgress: ${checked.length}/${total} (${pct}%)\n\nIMPORTANT: When calling cs_update_progress, use the EXACT item text shown above (case-insensitive match).`
+          const progress = getProgress(projectDir)
+          const tp = Object.values(progress.topics).find(
+            t => t.name.toLowerCase() === args.topic.toLowerCase(),
+          )
+          const currentLine = tp?.currentItem ? `**Current:** ${tp.currentItem}` : ""
+          const lastLine = tp?.lastCompletedItem ? `**Last completed:** ${tp.lastCompletedItem}` : ""
+
+          const tracker = [currentLine, lastLine].filter(Boolean).join("\n")
+          return `## Roadmap: ${args.topic}\n${lines.join("\n")}\n\n---\nProgress: ${checked.length}/${total} (${pct}%)\n${tracker ? tracker + "\n" : ""}\nIMPORTANT: When calling cs_update_progress, use the EXACT item text shown above (case-insensitive match).`
         },
       }),
 

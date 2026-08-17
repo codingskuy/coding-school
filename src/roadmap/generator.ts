@@ -11,12 +11,59 @@ export interface CreateRoadmapOptions {
   content: string
 }
 
+/**
+ * Normalizes AI-generated roadmap content so every material item is a
+ * checkbox line (`- [ ]` / `- [x]`). Numbered lists (`1.`, `2.`, `1)`) and
+ * bare bullets are converted. Fenced code blocks are left untouched.
+ */
+export function normalizeRoadmapContent(content: string): string {
+  const lines = content.split("\n")
+  const out: string[] = []
+  let inFence = false
+
+  for (const line of lines) {
+    if (/^\s*```/.test(line)) {
+      inFence = !inFence
+      out.push(line)
+      continue
+    }
+    if (inFence) {
+      out.push(line)
+      continue
+    }
+
+    const checkbox = line.match(/^(\s*)- \[([ xX])\] (.+)/)
+    if (checkbox) {
+      const checked = checkbox[2] === "x" || checkbox[2] === "X"
+      out.push(`${checkbox[1]}- [${checked ? "x" : " "}] ${checkbox[3]}`)
+      continue
+    }
+
+    const numbered = line.match(/^(\s*)\d+[.)]\s+(.+)/)
+    if (numbered) {
+      out.push(`${numbered[1]}- [ ] ${numbered[2]}`)
+      continue
+    }
+
+    const bare = line.match(/^(\s*)-\s+(.+)/)
+    if (bare) {
+      out.push(`${bare[1]}- [ ] ${bare[2]}`)
+      continue
+    }
+
+    out.push(line)
+  }
+
+  return out.join("\n")
+}
+
 export function createRoadmap(options: CreateRoadmapOptions): string {
   const { projectDir, topic, level, content } = options
 
   ensureDir(roadmapDir(projectDir))
   const path = topicRoadmapPath(projectDir, topic.toLowerCase(), level)
-  writeMarkdown(path, content)
+  const normalized = normalizeRoadmapContent(content)
+  writeMarkdown(path, normalized)
 
   const progress = readJson<ProgressData>(
     join(projectDir, ".codingschool", "progress.json"),
@@ -24,10 +71,10 @@ export function createRoadmap(options: CreateRoadmapOptions): string {
   )
 
   if (!progress.topics[topic]) {
-    const theory = extractChecklist(content, "Theory")
-    const practice = extractChecklist(content, "Practice")
-    const quizzes = extractChecklist(content, "Quiz")
-    const finalProject = extractChecklist(content, "Final Project")
+    const theory = extractChecklist(normalized, "Theory")
+    const practice = extractChecklist(normalized, "Practice")
+    const quizzes = extractChecklist(normalized, "Quiz")
+    const finalProject = extractChecklist(normalized, "Final Project")
 
     progress.topics[topic] = {
       name: topic,
@@ -37,6 +84,8 @@ export function createRoadmap(options: CreateRoadmapOptions): string {
       quizzes: [...quizzes, ...finalProject],
       completedTheory: [],
       completedPractice: [],
+      currentItem: theory[0] ?? null,
+      lastCompletedItem: null,
       currentBloomStage: null,
     }
   }
@@ -60,7 +109,9 @@ export function listRoadmapItems(projectDir: string, topic: string): RoadmapItem
   const files = readdirSync(topicDir).filter(f => f.endsWith(".md"))
   if (files.length === 0) return []
 
-  const content = readFileSync(join(topicDir, files[0]), "utf-8")
+  const content = files
+    .map(f => readFileSync(join(topicDir, f), "utf-8"))
+    .join("\n")
   const lines = content.split("\n")
   const items: RoadmapItem[] = []
   let currentSection = ""

@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
 
-import { createRoadmap } from "./generator"
+import { createRoadmap, normalizeRoadmapContent, listRoadmapItems } from "./generator"
 
 let tmpDir: string
 
@@ -90,7 +90,75 @@ afterEach(() => {
   rmSync(tmpDir, { recursive: true, force: true })
 })
 
+describe("normalizeRoadmapContent", () => {
+  it("converts numbered lists to checkboxes", () => {
+    const out = normalizeRoadmapContent(`## Theory
+1. Variables & Mutability
+2. Data Types
+3) Ownership & Borrowing
+`)
+    expect(out).toContain("- [ ] Variables & Mutability")
+    expect(out).toContain("- [ ] Data Types")
+    expect(out).toContain("- [ ] Ownership & Borrowing")
+  })
+
+  it("keeps existing checkboxes and normalizes uppercase X", () => {
+    const out = normalizeRoadmapContent(`## Theory
+- [X] Already Done
+- [ ] Pending
+`)
+    expect(out).toContain("- [x] Already Done")
+    expect(out).toContain("- [ ] Pending")
+  })
+
+  it("converts bare bullets to checkboxes", () => {
+    const out = normalizeRoadmapContent(`## Practice
+- Hello World
+- Calculator
+`)
+    expect(out).toContain("- [ ] Hello World")
+    expect(out).toContain("- [ ] Calculator")
+  })
+
+  it("leaves fenced code blocks untouched", () => {
+    const out = normalizeRoadmapContent(`## Theory
+\`\`\`
+1. not a list item
+- keep me
+\`\`\`
+- [ ] Real item
+`)
+    expect(out).toContain("1. not a list item")
+    expect(out).toContain("- keep me")
+    expect(out).toContain("- [ ] Real item")
+  })
+})
+
 describe("createRoadmap", () => {
+  it("writes normalized checkbox content to the file", () => {
+    createRoadmap({
+      projectDir: tmpDir,
+      topic: "Python",
+      level: "beginner",
+      content: `## Theory\n1. Variables & Data Types\n2. Loops\n\n## Practice\n- Functions\n`,
+    })
+    const { readFileSync } = require("fs")
+    const md = readFileSync(join(tmpDir, ".codingschool", "roadmap", "python", "beginner.md"), "utf-8")
+    expect(md).toContain("- [ ] Variables & Data Types")
+    expect(md).toContain("- [ ] Loops")
+    expect(md).toContain("- [ ] Functions")
+    expect(md).not.toContain("1. Variables")
+  })
+
+  it("lists items across all level files", () => {
+    createRoadmap({ projectDir: tmpDir, topic: "Rust", level: "beginner", content: SAMPLE_CONTENT })
+    createRoadmap({ projectDir: tmpDir, topic: "Rust", level: "expert", content: SAMPLE_CONTENT_EXPERT })
+    const items = listRoadmapItems(tmpDir, "Rust")
+    const texts = items.map(i => i.text)
+    expect(texts).toContain("CLI Tool")
+    expect(texts).toContain("Runtime Implementation")
+  })
+
   it("writes a markdown file with provided content", () => {
     const path = createRoadmap({ projectDir: tmpDir, topic: "Rust", level: "beginner", content: SAMPLE_CONTENT })
     expect(existsSync(path)).toBe(true)

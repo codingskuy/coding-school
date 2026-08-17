@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test"
 import { mkdtempSync, rmSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
-import { getProgress, updateProgress, renderProgressBar, renderDashboard } from "./tracker"
+import { getProgress, updateProgress, computeCurrentItem, renderProgressBar, renderDashboard } from "./tracker"
 import type { ProgressData } from "../utils/types"
 
 let tmpDir: string
@@ -47,6 +47,41 @@ describe("updateProgress", () => {
     updateProgress({ projectDir: tmpDir, topic: "Rust", item: "Variables", status: "done" })
     const p = getProgress(tmpDir)
     expect(p.xp).toBe(50)
+  })
+})
+
+describe("currentItem / lastCompletedItem", () => {
+  function seed(): void {
+    updateProgress({ projectDir: tmpDir, topic: "Rust", item: "Variables", status: "done" })
+    updateProgress({ projectDir: tmpDir, topic: "Rust", item: "Data Types", status: "done" })
+  }
+
+  it("tracks the last completed item", () => {
+    seed()
+    const p = getProgress(tmpDir)
+    expect(p.topics.Rust.lastCompletedItem).toBe("Data Types")
+  })
+
+  it("lastCompletedItem only set when status is done", () => {
+    updateProgress({ projectDir: tmpDir, topic: "Rust", item: "Variables", status: "in-progress" })
+    expect(getProgress(tmpDir).topics.Rust.lastCompletedItem).toBeNull()
+  })
+
+  it("computeCurrentItem returns first unfinished item", () => {
+    seed()
+    const p = getProgress(tmpDir)
+    expect(computeCurrentItem(p.topics.Rust)).toBeNull()
+  })
+
+  it("computeCurrentItem skips completed items", () => {
+    updateProgress({ projectDir: tmpDir, topic: "Rust", item: "Theory A", status: "done" })
+    updateProgress({ projectDir: tmpDir, topic: "Rust", item: "Practice Z", status: "done" })
+    const p = getProgress(tmpDir)
+    const tp = p.topics.Rust
+    tp.theory = ["Theory A", "Theory B"]
+    tp.practice = ["Practice Z"]
+    tp.currentItem = computeCurrentItem(tp)
+    expect(tp.currentItem).toBe("Theory B")
   })
 })
 

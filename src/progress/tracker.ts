@@ -34,6 +34,8 @@ export function updateProgress(options: UpdateProgressOptions): ProgressData {
       practice: [],
       completedPractice: [],
       quizzes: [],
+      currentItem: null,
+      lastCompletedItem: null,
       currentBloomStage: null,
     }
   }
@@ -45,14 +47,17 @@ export function updateProgress(options: UpdateProgressOptions): ProgressData {
     if (tp.theory.includes(item)) {
       if (!tp.completedTheory.includes(item)) {
         tp.completedTheory.push(item)
+        tp.lastCompletedItem = item
       }
     } else if (tp.practice.includes(item)) {
       if (!tp.completedPractice.includes(item)) {
         tp.completedPractice.push(item)
+        tp.lastCompletedItem = item
       }
     } else {
       tp.theory.push(item)
       tp.completedTheory.push(item)
+      tp.lastCompletedItem = item
     }
   }
 
@@ -93,7 +98,25 @@ export function renderDashboard(progress: ProgressData): string {
   return lines.join("\n")
 }
 
+/**
+ * First item in the roadmap (theory + practice order) that is not yet
+ * completed. `null` when the whole roadmap is done.
+ */
+export function computeCurrentItem(topic: TopicProgress): string | null {
+  for (const item of [...topic.theory, ...topic.practice]) {
+    if (!topic.completedTheory.includes(item) && !topic.completedPractice.includes(item)) {
+      return item
+    }
+  }
+  return null
+}
+
+function syncCurrentItem(topic: TopicProgress): void {
+  topic.currentItem = computeCurrentItem(topic)
+}
+
 function recalculatePercent(topic: TopicProgress): void {
+  syncCurrentItem(topic)
   const total = topic.theory.length + topic.practice.length + topic.quizzes.length
   if (total === 0) {
     topic.percent = 0

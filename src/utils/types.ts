@@ -13,6 +13,8 @@ export interface TopicProgress {
   practice: string[]
   completedPractice: string[]
   quizzes: string[]
+  currentItem?: string | null
+  lastCompletedItem?: string | null
   currentBloomStage: BloomStage | null
 }
 
