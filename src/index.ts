@@ -17,7 +17,7 @@ import {
   handleMentoringPlan,
   handleEngineeringStatus,
 } from "./coach"
-import { openClaim, submitClaim } from "./coach-gate"
+import { openClaim, submitClaim, hasOpenClaim } from "./coach-gate"
 import { detectIntent, onboardingMessage, roadmapConfirmPrompt } from "./utils/templates"
 import { createRoadmap, listRoadmapItems } from "./roadmap/generator"
 import { getProgress, updateProgress, renderDashboard } from "./progress/tracker"
@@ -31,7 +31,7 @@ import { existsSync, readdirSync } from "fs"
 import { progressPath } from "./utils/paths"
 import { diagnoseStudent, generateDiagnosisQuestions, buildInitialDiagnosisPrompt } from "./diagnosis"
 import { getScaffolding, buildScaffoldingPrompt, shouldEscalateHint } from "./scaffolding"
-import { announceDiagnosis, getTeachingSignals, getCoachBriefing } from "./context"
+import { announceDiagnosis, getTeachingSignals, getCoachBriefing, announceCapstone } from "./context"
 import { recordTool, checkAdvisories } from "./workflow"
 import { traceTool } from "./trace"
 import { scaffoldingOffset, applyScaffoldingOffset } from "./meta"
@@ -233,6 +233,39 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
           recordTool(projectDir, { toolName: "cs_assess_quiz", topic: args.topic })
 
           return renderAssessment(rubric)
+        },
+      }),
+
+      cs_prepare_capstone: tool({
+        description:
+          "Hand the roadmap's Final Project (capstone) to the Coach agent. Call when all non-capstone items are done or the student wants to start their capstone. Reads the ## Final Project section from the roadmap and flags it as ready for the Coach agent.",
+        args: {
+          topic: tool.schema.string(),
+        },
+        async execute(args) {
+          const items = listRoadmapItems(projectDir, args.topic)
+          if (items.length === 0) {
+            return `No roadmap found for topic "${args.topic}". Create a roadmap first with cs_create_roadmap.`
+          }
+          const capstone = items.filter(i =>
+            ["final project", "capstone", "project"].includes(i.section.toLowerCase()),
+          )
+          if (capstone.length === 0) {
+            return `No "## Final Project" section found in the roadmap for "${args.topic}". Add a Final Project section, then try again.`
+          }
+          const capItems = capstone.map(i => i.text)
+          announceCapstone(projectDir, { topic: args.topic, items: capItems, ready: true })
+          recordTool(projectDir, { toolName: "cs_prepare_capstone", topic: args.topic })
+          const projectName = capItems[0]
+          return `Capstone prepared for the Coach agent.
+
+Project: **${projectName}** (from topic "${args.topic}" roadmap)
+Checklist:
+${capItems.map(i => `- [ ] ${i}`).join("\n")}
+
+The Coach agent will see this capstone briefing when it starts. Tell the student:
+"Bagus sekali! Sekarang pindah ke agent **Coach** (dropdown agent, atau \`opencode --agent coach\`) untuk membangun proyek capstone: **${projectName}**. Coach akan memandu dari perencanaan sampai proyek selesai."
+(Do NOT mark Final Project items as done here — Coach completes them.)`
         },
       }),
 
@@ -827,9 +860,21 @@ Continue learning or start a new topic?`
     "permission.ask": async (input, output) => {
       if (input.id === "question") {
         output.status = "allow"
+        return
       }
-      // File-write enforcement lives in each agent's permission map:
-      // teacher/legacy deny write|edit|strreplace, coach allows them (claim gate flow).
+      // Claim-gate enforcement: file writes are allowed ONLY while a
+      // comprehension claim is open (cs_claim_open). This turns
+      // "cs_claim_open BEFORE writing any code" from a prompt suggestion
+      // into a system rule for the pair-programming workflow.
+      if (input.id === "write" || input.id === "edit" || input.id === "strreplace") {
+        if (!hasOpenClaim(projectDir)) {
+          output.status = "deny"
+          return
+        }
+        output.status = "allow"
+        return
+      }
+      // Everything else: defer to the agent permission maps / user.
     },  
   }
 }
@@ -854,6 +899,7 @@ AVAILABLE TOOLS:
 - cs_list_roadmap_items: List all items in a roadmap with checkbox status. Use BEFORE cs_update_progress to find exact item text.
 - cs_update_progress: Mark items done to track progress and award XP.
 - cs_assess_quiz: Evaluate answers with a 5-dimension rubric (recall, comprehension, application, analysis, creation).
+- cs_prepare_capstone: Hand the roadmap's Final Project (capstone) to the Coach agent. Call when non-capstone items are done.
 - cs_resume_session: Resume the last checkpoint.
 
 CHECKPOINT WORKFLOW (MANDATORY):
@@ -870,6 +916,14 @@ Example:
 - Call cs_update_progress with notes:
   topic="java programming", item="Variables & Data Types", status="done",
   notes="**Theory:**\nVariables store data. Data types: int, String, boolean.\n\n**Practice:**\nint age = 25;\nString name = \"Andi\";"
+
+CAPSTONE HANDOFF (MANDATORY):
+The roadmap's "Final Project" section is the student's CAPSTONE. It is built with the Coach agent, not with you.
+1. When every non-capstone item is done (or the student asks to start their capstone), call cs_list_roadmap_items to confirm what remains.
+2. Call cs_prepare_capstone(topic="...") to hand the capstone to the Coach.
+3. Tell the student to SWITCH to the Coach agent: open the agent dropdown and pick "coach", or run \`opencode --agent coach\`.
+4. Do NOT call cs_update_progress on any Final Project item. The Coach completes the capstone; you mark it done ONLY after the student returns with the finished project.
+- Keep your Training Roadmap theory/practice teaching for the non-capstone items.
 
 DIAGNOSIS-FIRST WORKFLOW:
 1. When a student wants to learn a topic, call cs_diagnose_student FIRST
@@ -941,18 +995,22 @@ PHASES:
 - PLANNING: Init project timeline, define milestones/sprints/epics/tasks, assess architecture
 - FEATURE GENERATION + CLAIM GATE: Coach writes the code → user must prove understanding to claim it → revert if they can't
 - REVIEW & ITERATE: Code review, GRC scan, engineering competency updates, timeline tracking
+- COMPLETION & HANDOFF: Final review, mark project complete, send the student back to the Teacher agent
+
+CAPSTONE ENTRY:
+- When the student arrives from the Teacher agent, read the Coach briefing (cs_claim_open output / shared context). If it contains a CAPSTONE PROJECT READY block, THAT is the project to build — seed Phase 1 with it:
+  - projectName ← the capstone item text
+  - description ← built from the roadmap topic + capstone checklist
+  - milestones ← your professional breakdown of the capstone
+- If no capstone briefing exists, follow the normal "user mentions a project idea" flow.
 
 AVAILABLE TOOLS:
-=== Existing Tools ===
+=== Mentor & Review Tools ===
 - cs_code_review: Review code for quality, security, and engineering best practices. Updates engineering competency automatically.
 - cs_architecture_review: Assess system design for scalability, maintainability, and risks.
 - cs_grc_scan: Scan code for governance, risk, and compliance issues (OWASP Top 10).
 - cs_mentoring_plan: Generate a personalized engineering growth plan based on competency scores.
 - cs_engineering_status: Display current engineering competency across 8 dimensions.
-- cs_coach_dialog: Legacy coaching dialog for intent detection.
-- cs_create_roadmap: Create a structured learning plan.
-- cs_update_progress: Mark items done to track progress.
-- cs_assess_quiz: Evaluate answers with a 5-dimension rubric.
 - cs_resume_session: Resume the last checkpoint.
 
 === Claim Gate Tools (pair-programming model) ===
@@ -1025,6 +1083,13 @@ PHASE 3 — REVIEW & ITERATE:
 1. After each feature: cs_code_review → cs_grc_scan → cs_timeline_update
 2. Periodically call cs_mentoring_plan and cs_engineering_status
 3. When milestone complete, review the milestone with user
+
+PHASE 4 — COMPLETION & HANDOFF (when ALL milestones are done):
+1. Run a final review pass: cs_code_review → cs_grc_scan → cs_engineering_status
+2. Confirm the timeline is fully done (cs_timeline_list shows 100%).
+3. Summarize the finished project for the student (what was built, competencies gained, next steps).
+4. DIRECT THE STUDENT BACK TO TEACHER: tell them to switch back to the "teacher" agent (dropdown, or \`opencode --agent teacher\`) to close the roadmap — Teacher will mark the Final Project items done using your summary.
+5. Trade the summary into the shared context so Teacher can complete the roadmap.
 
 CODE REVIEW RULES:
 - Always provide specific, actionable feedback
