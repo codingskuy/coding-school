@@ -19,7 +19,7 @@
 
 ---
 
-*Stop copying code you don't understand.*
+*Stop copying code you don't understand.* https://codingskuy.github.io/codingschool
 
 CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skills** — not dependency on AI autocomplete.
 
