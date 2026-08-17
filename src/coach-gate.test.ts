@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, readdirSy
 import { join } from "path"
 import { tmpdir } from "os"
 
-import { openClaim, submitClaim, updateEngineeringFromClaim } from "./coach-gate"
+import { openClaim, submitClaim, updateEngineeringFromClaim, hasOpenClaim } from "./coach-gate"
 import { initTimeline, addTimelineItem, updateTimelineItem, loadTimeline } from "./timeline/generator"
 import { ensureDir, readJson } from "./utils/fs"
 import { dirname } from "path"
@@ -371,5 +371,29 @@ describe("updateEngineeringFromClaim", () => {
     expect(engineering.collaboration).toBe(100)
     expect(engineering.codeQuality).toBe(100)
     expect(engineering.documentation).toBe(93)
+  })
+})
+
+describe("hasOpenClaim", () => {
+  it("is false when no claims exist", () => {
+    expect(hasOpenClaim(tmpDir)).toBe(false)
+  })
+
+  it("is true while a claim is open and false once claimed", () => {
+    const target = writeTargetFile("lib/add.ts", "export function add(a: number, b: number) { return a + b }")
+    openClaim({ projectDir: tmpDir, projectName, itemName: "Build add function", files: [target] })
+    expect(hasOpenClaim(tmpDir)).toBe(true)
+
+    submitClaim({
+      projectDir: tmpDir,
+      projectName,
+      itemName: "Build add function",
+      verdict: "pass",
+      qa: [
+        { question: "q1", answer: "adding two numbers", score: "correct" as const },
+        { question: "q2", answer: "the return", score: "correct" as const },
+      ],
+    })
+    expect(hasOpenClaim(tmpDir)).toBe(false)
   })
 })

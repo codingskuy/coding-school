@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "fs"
+import { join } from "path"
 import type {
   ClaimRecord,
   ClaimVerdict,
@@ -6,7 +7,8 @@ import type {
   EngineeringLevel,
 } from "./utils/types"
 import { readJson, writeJson } from "./utils/fs"
-import { claimPath, timelinePath } from "./utils/paths"
+import { claimsDir, claimPath, timelinePath } from "./utils/paths"
+import { readdirSync } from "fs"
 import { updateTimelineItem } from "./timeline/generator"
 import { loadEngineering, saveEngineering } from "./competency"
 import { announceClaimResult } from "./context"
@@ -50,6 +52,18 @@ export const ENGINEERING_LEVELS: Record<EngineeringLevel, { label: string; descr
     description: "robust solution: error handling, input validation, best practices, maintainable and extensible",
     bump: 6,
   },
+}
+
+/** True when at least one claim is still awaiting the comprehension gate. */
+export function hasOpenClaim(projectDir: string): boolean {
+  const dir = claimsDir(projectDir)
+  if (!existsSync(dir)) return false
+  return readdirSync(dir)
+    .filter(f => f.endsWith(".json"))
+    .some(f => {
+      const claim = readJson<ClaimRecord | null>(join(dir, f), null)
+      return claim?.status === "open"
+    })
 }
 
 export function openClaim(options: OpenClaimOptions): string {

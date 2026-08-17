@@ -8,6 +8,7 @@ import {
   announceDiagnosis,
   announceReviewFindings,
   announceClaimResult,
+  announceCapstone,
   getTeachingSignals,
   getCoachBriefing,
 } from "./context"
@@ -95,6 +96,26 @@ describe("getCoachBriefing", () => {
 
   it("is empty when Teacher has shared nothing", () => {
     expect(getCoachBriefing(tmpDir)).toHaveLength(0)
+  })
+})
+
+describe("announceCapstone", () => {
+  it("stores the pending capstone and flips phase to project", () => {
+    announceCapstone(tmpDir, { topic: "Rust", items: ["CLI Tool"], ready: true })
+    const ctx = loadContext(tmpDir)
+    expect(ctx.currentPhase).toBe("project")
+    expect(ctx.coach.pendingCapstone?.topic).toBe("Rust")
+    expect(ctx.coach.pendingCapstone?.items).toEqual(["CLI Tool"])
+    expect(ctx.coach.pendingCapstone?.ready).toBe(true)
+  })
+
+  it("surfaces the capstone in the Coach briefing", () => {
+    announceCapstone(tmpDir, { topic: "Rust", items: ["CLI Tool", "Tests"], ready: true })
+    const briefing = getCoachBriefing(tmpDir)
+    const joined = briefing.join(" ")
+    expect(joined).toContain("CAPSTONE PROJECT READY")
+    expect(joined).toContain("CLI Tool")
+    expect(joined).toContain("Tests")
   })
 })
 

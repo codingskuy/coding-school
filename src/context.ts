@@ -11,6 +11,7 @@ export type AgentPhase =
   | "project"
   | "claim"
   | "review"
+  | "done"
 
 export interface TeacherInsights {
   misconceptions: string[]
@@ -19,12 +20,19 @@ export interface TeacherInsights {
   lastDiagnosedAt?: string
 }
 
+export interface CapstoneBrief {
+  topic: string
+  items: string[]
+  ready: boolean
+}
+
 export interface CoachFindings {
   weakDimensions: string[]
   skillGaps: string[]
   readiness?: EngineeringLevel
   lastReviewAt?: string
   lastClaimLevel?: EngineeringLevel
+  pendingCapstone?: CapstoneBrief
 }
 
 export interface SharedAgentContext {
@@ -159,6 +167,16 @@ export function getCoachBriefing(projectDir: string): string[] {
       `Student is learning "${ctx.teacher.activeTopic}" with Teacher.`,
     )
   }
+  if (ctx.coach.pendingCapstone) {
+    const cap = ctx.coach.pendingCapstone
+    lines.push(
+      `CAPSTONE PROJECT READY from Teacher's roadmap (topic: ${cap.topic}).` +
+        (cap.ready
+          ? ` Build it with the student using the professional project workflow.`
+          : ` Still in progress with Teacher — do NOT build until Teacher says ready.`),
+    )
+    lines.push(`Capstone roadmap items:\n- ${cap.items.join("\n- ")}`)
+  }
   if (ctx.teacher.misconceptions.length > 0) {
     lines.push(
       `Teacher-detected misconceptions: ${ctx.teacher.misconceptions.join("; ")}.`,
@@ -166,6 +184,24 @@ export function getCoachBriefing(projectDir: string): string[] {
   }
 
   return lines
+}
+
+/**
+ * Teacher marks the roadmap's Final Project section as a capstone ready for
+ * the Coach agent. Flipping `currentPhase` to "project" signals the handoff.
+ */
+export function announceCapstone(
+  projectDir: string,
+  input: { topic: string; items: string[]; ready: boolean },
+): void {
+  const ctx = loadContext(projectDir)
+  ctx.currentPhase = "project"
+  ctx.coach.pendingCapstone = {
+    topic: input.topic,
+    items: input.items,
+    ready: input.ready,
+  }
+  saveContext(projectDir, ctx)
 }
 
 function extractSkillGaps(improvements: string[], grcFlags: string[]): string[] {
