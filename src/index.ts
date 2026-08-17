@@ -31,7 +31,7 @@ import { existsSync, readdirSync } from "fs"
 import { progressPath } from "./utils/paths"
 import { diagnoseStudent, generateDiagnosisQuestions, buildInitialDiagnosisPrompt } from "./diagnosis"
 import { getScaffolding, buildScaffoldingPrompt, shouldEscalateHint } from "./scaffolding"
-import { announceDiagnosis, getTeachingSignals, getCoachBriefing, announceCapstone } from "./context"
+import { announceDiagnosis, getTeachingSignals, getCoachBriefing, announceCapstone, announceProjectComplete } from "./context"
 import { recordTool, checkAdvisories } from "./workflow"
 import { traceTool } from "./trace"
 import { scaffoldingOffset, applyScaffoldingOffset } from "./meta"
@@ -729,6 +729,28 @@ Continue learning or start a new topic?`
         },
       }),
 
+      cs_announce_project_complete: tool({
+        description:
+          "Record a finished project so the Teacher agent can close the roadmap (mark the Final Project items done). Call at the end of a project when all milestones are done; pass a summary of what was built.",
+        args: {
+          projectName: tool.schema.string(),
+          topic: tool.schema.string().optional(),
+          summary: tool.schema.string(),
+        },
+        async execute(args) {
+          announceProjectComplete(projectDir, {
+            projectName: args.projectName,
+            topic: args.topic,
+            summary: args.summary,
+          })
+          recordTool(projectDir, { toolName: "cs_announce_project_complete", projectName: args.projectName })
+          return `Project completion recorded. The Teacher agent will see it and close the roadmap.
+
+Tell the student:
+"Kerja bagus! Proyek **${args.projectName}** sudah selesai. Sekarang pindah kembali ke agent **Teacher** (dropdown agent, atau \`opencode --agent teacher\`) untuk menutup roadmap dan refleksi akhir."`
+        },
+      }),
+
       cs_claim_open: tool({
         description: "Open a code claim for Coach's pair-programming model: snapshot the current state of the target files and mark the timeline item as awaiting the user's comprehension proof. Call BEFORE writing any generated code. The generated code only becomes final when the user claims it (cs_claim_submit verdict=pass).",
         args: {
@@ -978,7 +1000,8 @@ CRITICAL RULES:
     b) IMMEDIATELY invite the student to practice with a hands-on challenge
     c) Use the "question" tool to ask if they want to try coding it themselves
     d) Only mark as done via cs_update_progress AFTER the student has practiced
-    Never skip practice. Theory without practice is incomplete learning.`
+    Never skip practice. Theory without practice is incomplete learning.
+13. CAPSTONE RETURN (MANDATORY): When the student comes back from the Coach with a finished capstone, read the "Context from Coach" signal. Then mark every Final Project item done via cs_update_progress, using the Coach's project summary as the \`notes\` for the handbook, celebrate the milestone, and run a closing reflection (cs_reflect, type="after-challenge").`
 
 const COACH_SYSTEM_PROMPT = `You are Coach — a software engineering project mentor & guide with GRC (Governance, Risk, Compliance) awareness. You guide users through real-industry project development from planning to completion.
 
@@ -1023,6 +1046,7 @@ AVAILABLE TOOLS:
 - cs_timeline_update: Update the status of any item (todo, in-progress, done, blocked) with optional notes.
 - cs_timeline_list: Show the full project timeline tree with all statuses and progress.
 - cs_project_scaffold: Generate folder structure. Only call AFTER user approval.
+- cs_announce_project_complete: Record a finished project so the Teacher can close the roadmap. Call at the end, after the final review.
 
 8 ENGINEERING COMPETENCIES:
 1. Code Quality — naming, structure, DRY, clean code
@@ -1088,8 +1112,7 @@ PHASE 4 — COMPLETION & HANDOFF (when ALL milestones are done):
 1. Run a final review pass: cs_code_review → cs_grc_scan → cs_engineering_status
 2. Confirm the timeline is fully done (cs_timeline_list shows 100%).
 3. Summarize the finished project for the student (what was built, competencies gained, next steps).
-4. DIRECT THE STUDENT BACK TO TEACHER: tell them to switch back to the "teacher" agent (dropdown, or \`opencode --agent teacher\`) to close the roadmap — Teacher will mark the Final Project items done using your summary.
-5. Trade the summary into the shared context so Teacher can complete the roadmap.
+4. Call cs_announce_project_complete with the project name and that summary, then DIRECT THE STUDENT BACK TO TEACHER: tell them to switch back to the "teacher" agent (dropdown, or \`opencode --agent teacher\`) to close the roadmap — Teacher will mark the Final Project items done using the recorded summary.
 
 CODE REVIEW RULES:
 - Always provide specific, actionable feedback

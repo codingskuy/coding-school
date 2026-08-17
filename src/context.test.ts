@@ -9,6 +9,7 @@ import {
   announceReviewFindings,
   announceClaimResult,
   announceCapstone,
+  announceProjectComplete,
   getTeachingSignals,
   getCoachBriefing,
 } from "./context"
@@ -116,6 +117,25 @@ describe("announceCapstone", () => {
     expect(joined).toContain("CAPSTONE PROJECT READY")
     expect(joined).toContain("CLI Tool")
     expect(joined).toContain("Tests")
+  })
+})
+
+describe("announceProjectComplete", () => {
+  it("records the finished project and flips phase to done", () => {
+    announceProjectComplete(tmpDir, { projectName: "Todo App", topic: "Rust", summary: "Built a CLI tool with tests." })
+    const ctx = loadContext(tmpDir)
+    expect(ctx.currentPhase).toBe("done")
+    expect(ctx.coach.completedProject?.projectName).toBe("Todo App")
+    expect(ctx.coach.completedProject?.summary).toBe("Built a CLI tool with tests.")
+  })
+
+  it("surfaces the completed project to the Teacher", () => {
+    announceProjectComplete(tmpDir, { projectName: "Todo App", topic: "Rust", summary: "shipped the CRUD" })
+    const signals = getTeachingSignals(tmpDir)
+    const joined = signals.join(" ")
+    expect(joined).toContain("Todo App")
+    expect(joined).toContain("Close the roadmap")
+    expect(joined).toContain("shipped the CRUD")
   })
 })
 

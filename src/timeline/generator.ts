@@ -119,10 +119,19 @@ export function updateTimelineItem(options: UpdateTimelineItemOptions): string {
     const total = countItems(data)
     const done = countItemsByStatus(data, "done")
     const pct = total > 0 ? Math.round((done / total) * 100) : 0
-    return `"${itemName}" marked as ${status}. Overall progress: ${done}/${total} (${pct}%).`
+    const banner = isProjectComplete(data)
+      ? "\n\n✅ PROJECT COMPLETE — all milestones are done. Run the final review, then send the student back to the Teacher agent."
+      : ""
+    return `"${itemName}" marked as ${status}. Overall progress: ${done}/${total} (${pct}%).${banner}`
   }
 
   return `"${itemName}" marked as ${status}.`
+}
+
+function isProjectComplete(data: TimelineData): boolean {
+  const total = countItems(data)
+  const done = countItemsByStatus(data, "done")
+  return total > 0 && done === total
 }
 
 function findItem(data: TimelineData, name: string, type: TimelineItemType): any {

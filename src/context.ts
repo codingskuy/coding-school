@@ -33,6 +33,7 @@ export interface CoachFindings {
   lastReviewAt?: string
   lastClaimLevel?: EngineeringLevel
   pendingCapstone?: CapstoneBrief
+  completedProject?: { projectName: string; topic?: string; summary: string }
 }
 
 export interface SharedAgentContext {
@@ -153,6 +154,12 @@ export function getTeachingSignals(projectDir: string): string[] {
       `Active misconceptions: ${ctx.teacher.misconceptions.join("; ")}. Address before moving on.`,
     )
   }
+  if (ctx.coach.completedProject) {
+    const proj = ctx.coach.completedProject
+    lines.push(
+      `Student finished the project "${proj.projectName}" with Coach. Close the roadmap: mark the Final Project items done via cs_update_progress (use this summary as notes).\nProject summary: ${proj.summary}`,
+    )
+  }
 
   return lines
 }
@@ -200,6 +207,24 @@ export function announceCapstone(
     topic: input.topic,
     items: input.items,
     ready: input.ready,
+  }
+  saveContext(projectDir, ctx)
+}
+
+/**
+ * Coach announces a finished project so the Teacher can close the roadmap:
+ * mark the Final Project items done and reflect with the student.
+ */
+export function announceProjectComplete(
+  projectDir: string,
+  input: { projectName: string; topic?: string; summary: string },
+): void {
+  const ctx = loadContext(projectDir)
+  ctx.currentPhase = "done"
+  ctx.coach.completedProject = {
+    projectName: input.projectName,
+    topic: input.topic,
+    summary: input.summary,
   }
   saveContext(projectDir, ctx)
 }

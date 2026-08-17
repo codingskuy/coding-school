@@ -139,6 +139,23 @@ describe("updateTimelineItem", () => {
     })
     expect(result).toContain("not found")
   })
+
+  it("does not announce completion until everything is done", () => {
+    const result = updateTimelineItem({
+      projectDir: tmpDir, projectName: "Todo App", itemName: "Create model", status: "done",
+    })
+    expect(result).not.toContain("PROJECT COMPLETE")
+  })
+
+  it("announces PROJECT COMPLETE when every item is done", () => {
+    updateTimelineItem({ projectDir: tmpDir, projectName: "Todo App", itemName: "Create model", status: "done" })
+    updateTimelineItem({ projectDir: tmpDir, projectName: "Todo App", itemName: "Task CRUD", status: "done" })
+    updateTimelineItem({ projectDir: tmpDir, projectName: "Todo App", itemName: "Sprint 1", status: "done" })
+    const result = updateTimelineItem({
+      projectDir: tmpDir, projectName: "Todo App", itemName: "MVP", status: "done",
+    })
+    expect(result).toContain("PROJECT COMPLETE")
+  })
 })
 
 describe("listTimeline", () => {
