@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.2.1 - 2026-08-17
+
+### Added
+- Teacher ↔ Coach capstone handoff: new `cs_prepare_capstone` (Teacher hands the roadmap's `## Final Project` to Coach; `currentPhase` → `project`) and `cs_announce_project_complete` (Coach records the finished project so Teacher can close the roadmap; `currentPhase` → `done`)
+- Checkbox enforcement: AI-generated roadmaps are normalized to `- [ ]`/`- [x]` checklist items (numbered lists and bare bullets auto-converted, fenced code blocks untouched) so parsers and progress stay in sync
+- `currentItem` / `lastCompletedItem` tracked per topic and shown by `cs_list_roadmap_items`, `cs_update_progress`, and `cs_resume_session` so the agent always knows where the student is
+- `cs_list_roadmap_items` now reads all level files in a topic dir (beginner/intermediate/expert), not just the first
+- Timeline completion detection: `cs_timeline_update` announces `✅ PROJECT COMPLETE` when every milestone is done
+- Claim-gate enforcement at the system level: `permission.ask` denies `write`/`edit`/`strreplace` while no comprehension claim is open (Coach may only write inside the claim flow)
+
+### Changed
+- `TEACHER_SYSTEM_PROMPT`: mandatory CAPSTONE HANDOFF flow (list → `cs_prepare_capstone` → direct student to the Coach agent); Teacher must NOT mark Final Project items done; CAPSTONE RETURN rule closes the roadmap with the Coach's project summary
+- `COACH_SYSTEM_PROMPT`: CAPSTONE ENTRY seeds Phase 1 from the Teacher briefing; new PHASE 4 — COMPLETION & HANDOFF sends the student back to Teacher; tool list cleaned (removed Teacher-only roadmap/quiz tools)
+
+### Fixed
+- `hasOpenClaim` guards file writes; Coach tool list no longer exposes Teacher-only tools
+
 ## 2.2.0 - 2026-08-10
 
 ### Added

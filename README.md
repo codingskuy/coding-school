@@ -6,10 +6,10 @@
 
 **Two agents. One mission. Real understanding.**
 
-[![Version](https://img.shields.io/badge/version-2.2.0-blue.svg)](https://github.com/codingskuy/codingschool)
+[![Version](https://img.shields.io/badge/version-2.2.1-blue.svg)](https://github.com/codingskuy/codingschool)
 [![Installs](https://img.shields.io/badge/installs-1,000-brightgreen?logo=npm)](https://www.npmjs.com/package/@codingskuy/coding-school)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Tests](https://img.shields.io/badge/tests-286%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-304%20passing-brightgreen.svg)](#development)
 [![OpenCode](https://img.shields.io/badge/OpenCode-v0.7+-purple.svg)](https://opencode.ai)
 
 ---
@@ -27,34 +27,42 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 
 ---
 
-## ✨ What's New in v2.1
+## ✨ What's New in v2.2.1
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  v2.1 — The Installer & Project Timeline                        │
+│  v2.2.1 — Teacher ↔ Coach Capstone Handoff                      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  📦 ONE-COMMAND INSTALL          🗺️ COACH TIMELINE              │
+│  ✅ CHECKBOX ROADMAPS          🔄 CAPSTONE HANDOFF              │
 │  ┌──────────────────────────┐   ┌──────────────────────────┐   │
-│  │  npm i @codingskuy/      │   │  Milestones → Sprints →  │   │
-│  │  coding-school            │   │  Epics → Tasks           │   │
-│  │  npx coding-school setup  │   │  Interactive Planner     │   │
+│  │  Auto-converted to       │   │  Theory/Practice done    │   │
+│  │  - [ ] checklist items   │   │  → Teacher → Coach       │   │
 │  └──────────────────────────┘   └──────────────────────────┘   │
 │                                                                 │
-│  🧑‍🏫 AGENTS RENAMED              🚀 PI AGENT (SOON)           │
+│  🎯 CURRENT & LAST PROGRESS    🏁 PROJECT COMPLETE            │
 │  ┌──────────────────────────┐   ┌──────────────────────────┐   │
-│  │  LEARN  →  TEACHER       │   │  Architecture review +   │   │
-│  │  (clearer identity)      │   │  Research-backed design  │   │
+│  │  cs_list_roadmap_items   │   │  All milestones done      │   │
+│  │  shows Current / Last    │   │  → Coach → Teacher        │   │
 │  └──────────────────────────┘   └──────────────────────────┘   │
 │                                                                 │
-│  🔗 1,000 INSTALLS             📦 Zero-dep CLI                 │
+│  🔒 CLAIM-GATE ENFORCED        🧹 COACH TOOL CLEANUP           │
 │  ┌──────────────────────────┐   ┌──────────────────────────┐   │
-│  │  Milestone reached!      │   │  Built-in setup wizard   │   │
-│  │  Thank you, students!    │   │  No extra dependencies   │   │
+│  │  Writes denied unless a  │   │  Teacher-only tools       │   │
+│  │  comprehension claim is  │   │  removed from Coach       │   │
+│  │  open                    │   │                           │   │
+│  └──────────────────────────┘   └──────────────────────────┘   │
+│                                                                 │
+│  📖 304 TESTS                  🆕 cs_prepare_capstone         │
+│  ┌──────────────────────────┐   ┌──────────────────────────┐   │
+│  │  100% passing            │   │  + cs_announce_project_  │   │
+│  │                          │   │  complete                │   │
 │  └──────────────────────────┘   └──────────────────────────┘   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**The learning journey now flows end-to-end:** Teacher builds a checkbox roadmap and tracks Current/Last progress → hands the capstone to Coach → Coach builds the project with the professional workflow (claim gate enforced) → Coach records completion and sends the student back → Teacher closes the roadmap and reflects.
 
 ---
 
@@ -176,6 +184,7 @@ Then restart OpenCode and switch agent in the dropdown.
 | `cs_create_roadmap` | Generate learning roadmap | New topic setup |
 | `cs_update_progress` | Mark items done, award XP, append narrative notes to learning handbook. Pass `notes` (Theory + Practice) to build a permanent learning journal | After each concept |
 | `cs_assess_quiz` | Bloom's taxonomy rubric | Quiz time |
+| `cs_prepare_capstone` | Hand the roadmap's Final Project to the Coach agent | All non-capstone items done |
 | `cs_resume_session` | Load last checkpoint | Session start |
 
 ### Coach Tools
@@ -187,6 +196,7 @@ Then restart OpenCode and switch agent in the dropdown.
 | `cs_timeline_update` | Update timeline item status | Progress sync |
 | `cs_timeline_list` | View full project timeline | Status review |
 | `cs_project_scaffold` | Bootstrap project with full timeline, milestones & structure | Starting a new project |
+| `cs_announce_project_complete` | Record a finished project so the Teacher can close the roadmap | All milestones done |
 | `cs_claim_open` | Snapshot target files + mark timeline item as awaiting comprehension proof | Before Coach writes generated code |
 | `cs_claim_submit` | Close a claim: `pass`, `fail` (re-explain at next level), `partial-pass-continue` (code stays, claim open), `revert` (roll back code). Pass `qa` for multi-turn comprehension evidence | After the comprehension gate |
 | `cs_code_review` | Quality, security, best practices | Code shared by student |
@@ -332,6 +342,11 @@ The agent **adapts** to the student in real-time:
 ├── sessions/
 │   ├── 2026-07-19.md
 │   └── 2026-07-20.md
+├── context.json           # Shared Teacher ↔ Coach state (diagnosis, capstone, completion)
+├── workflow.json          # Tool-call order validator (advisory warnings)
+├── claims/                # Comprehension claim snapshots (claim gate)
+│   └── <project>.json
+├── logs/                  # Debug decision traces (YYYY-MM-DD.jsonl, rotated)
 └── timeline/             # Coach project planning (epics, sprints, milestones)
     └── <project>.json
 
@@ -376,7 +391,14 @@ The agent **adapts** to the student in real-time:
                         ▼
                  ┌─────────────┐
                  │   COMPETENCY│  ★★★☆☆ Updated!
-                 └─────────────┘
+                 └──────┬──────┘
+                        │
+                        ▼   Final Project (capstone) reached?
+                 ┌─────┴─────┐
+                 │  YES      │ → Hand off to the COACH agent
+                 │  ───────  │   (cs_prepare_capstone)
+                 └───────────┘   → Coach builds it → project done
+                                  → back to Teacher to close the roadmap
 ```
 
 ---
@@ -410,15 +432,32 @@ The agent **adapts** to the student in real-time:
   ┌──────────────┐
   │  REVIEW &    │  Review diff, update timeline status,
   │  REFLECT     │  log engineering competency growth
+  └──────┬───────┘
+         │
+         ▼
+  ┌──────────────┐
+  │  COMPLETION  │  All milestones done → ✅ PROJECT COMPLETE
+  │  & HANDOFF   │  → cs_announce_project_complete (summary)
+  │              │  → send the student back to Teacher
   └──────────────┘
 ```
+
+### Capstone Handoff (v2.2.1)
+
+The roadmap's **Final Project** section is the student's capstone, built with the Coach agent:
+
+1. **Teacher** teaches all theory/practice items and tracks progress via `Current`/`Last completed`.
+2. When non-capstone items are done, Teacher calls `cs_prepare_capstone` → directs the student to switch to the **Coach** agent (`opencode --agent coach`). Teacher never marks Final Project items done.
+3. **Coach** sees the `CAPSTONE PROJECT READY` briefing and seeds Phase 1 of the professional workflow from it.
+4. When all milestones are done, `cs_timeline_update` announces `✅ PROJECT COMPLETE`, Coach runs the final review and calls `cs_announce_project_complete`.
+5. Coach directs the student back to the **Teacher** agent (`opencode --agent teacher`), who reads the project summary, marks the Final Project items done (with the summary as handbook notes), and closes the roadmap with a reflection.
 
 ### Comprehension Claim Gate
 
 Coach writes code like a build agent, but the code is **not final until the user claims it**:
 
 1. Coach calls `cs_claim_open` — snapshots the current state of every target file (new + existing).
-2. Coach writes the generated code.
+2. Coach writes the generated code. **File writes are enforced at the system level**: `permission.ask` denies `write`/`edit`/`strreplace` while no comprehension claim is open — Coach literally cannot edit files outside a claim.
 3. Coach asks **3-5 probing questions, multi-turn** (e.g. "Explain line X in your own words", then follow-ups tuned to the answers). Question banks scale with engineering level (junior → mid → senior).
 4. Coach scores each answer (`correct` / `partial` / `incorrect`) and records them in the `qa` argument of `cs_claim_submit`. Aggregate confidence = 70% average + 30% weakest answer, so one lucky guess can't carry the gate.
 5. Verdict via `cs_claim_submit`:
@@ -435,7 +474,9 @@ Generated code is only considered done when claimed. If the user can't demonstra
 
 The dual-agent loop is wired with shared state and observability so Teacher and Coach don't work blind:
 
-- **Shared context** (`.codingschool/context.json`) — Teacher announces diagnosis (active topic, misconceptions) and Coach writes review/claim findings (weak engineering dimensions, skill gaps, claimed level). Teacher's `cs_teach_concept` output includes a "Context from Coach" block; Coach's `cs_claim_open` output includes a "Context from Teacher" brief.
+- **Shared context** (`.codingschool/context.json`) — Teacher announces diagnosis (active topic, misconceptions) and Coach writes review/claim findings (weak engineering dimensions, skill gaps, claimed level). Teacher's `cs_teach_concept` output includes a "Context from Coach" block; Coach's `cs_claim_open` output includes a "Context from Teacher" brief. Since v2.2.1 the context also carries the **capstone handoff** (`pendingCapstone`, phase → `project`) and the **project completion** (`completedProject` with the Coach's summary, phase → `done`), so Teacher always knows where the student is in the roadmap.
+- **Checkbox roadmaps & progress** — roadmaps are normalized to `- [ ]`/`- [x]` checklists on creation; each topic tracks `currentItem` (first unfinished) and `lastCompletedItem`, surfaced by `cs_list_roadmap_items`, `cs_update_progress` and `cs_resume_session`.
+- **Claim-gate enforcement** — `permission.ask` denies `write`/`edit`/`strreplace` while no comprehension claim is open, so Coach can only write inside the pair-programming claim flow.
 - **Workflow validator** (`.codingschool/workflow.json`) — records tool calls and emits **advisory warnings** (never blocking) when the order is off, e.g. teaching a topic before diagnosis, or submitting a claim with no recorded `cs_claim_open`.
 - **Decision traces** (`.codingschool/logs/YYYY-MM-DD.jsonl`) — debug-only internal logs (agent, tool, sanitized input, outcome, duration). Code, file lists, answers and notes are **never written**. Rotates at 500 lines.
 - **Meta-learning** — the initial hint level is auto-tuned from learning history (struggling topics get more scaffolding, mastered topics less), and re-explanation level is capped for students with poor claim history.
@@ -451,7 +492,7 @@ Trace the lifecycle of a claim: `cs_claim_open` → comprehension Q&A (recorded 
 # Install dependencies
 bun install
 
-# Run all 286 tests
+# Run all 304 tests
 bun test
 
 # Type check
@@ -468,22 +509,42 @@ bun run build:quick
 
 ```
   src/
-  ├── student-model.test.ts      22 tests
-  ├── competency.test.ts         24 tests
-  ├── diagnosis.test.ts          15 tests
-  ├── scaffolding.test.ts        13 tests
-  ├── reflection.test.ts         19 tests
-  ├── engineering.test.ts        19 tests
-  ├── migration.test.ts          16 tests
-  ├── timeline/generator.test.ts 15 tests
-  └── ... (7 more test files)
+  ├── student-model.test.ts        26 tests
+  ├── competency.test.ts           24 tests
+  ├── engineering.test.ts          21 tests
+  ├── scaffolding.test.ts          19 tests
+  ├── reflection.test.ts           19 tests
+  ├── timeline/generator.test.ts   17 tests
+  ├── coach-gate.test.ts           17 tests
+  ├── diagnosis.test.ts            15 tests
+  ├── progress/tracker.test.ts     14 tests
+  ├── roadmap/generator.test.ts    13 tests
+  ├── context.test.ts              13 tests
+  └── ... (9 more test files)
   ─────────────────────────────
-  Total: 221 tests  ✅ 0 failures
+  Total: 304 tests  ✅ 0 failures
 ```
 
 ---
 
 ## 📜 Changelog
+
+### v2.2.1 — Teacher ↔ Coach Capstone Handoff (2026-08-17)
+
+**🔁 Full learning loop:**
+- Teacher → Coach handoff: `cs_prepare_capstone` hands the roadmap's `## Final Project` to Coach (shared context carries the capstone briefing; Teacher directs the student to switch agents)
+- Coach → Teacher handoff: `cs_announce_project_complete` records the finished project + summary; `cs_timeline_update` announces `✅ PROJECT COMPLETE` when all milestones are done; Coach directs the student back to Teacher
+- Teacher closes the roadmap: reads the Coach's project summary, marks Final Project items done (summary becomes handbook notes), runs a closing reflection
+
+**✅ Checkbox roadmaps & progress:**
+- Roadmap content normalized to `- [ ]`/`- [x]` checklists on creation (numbered lists / bare bullets auto-converted, code fences untouched)
+- `currentItem` + `lastCompletedItem` tracked per topic and shown by `cs_list_roadmap_items`, `cs_update_progress`, `cs_resume_session`
+- `cs_list_roadmap_items` reads all level files (beginner/intermediate/expert)
+
+**🔒 Enforcement & polish:**
+- Claim gate enforced at system level — `permission.ask` denies file writes while no comprehension claim is open
+- Coach tool list cleaned (Teacher-only roadmap/quiz tools removed)
+- 304 tests (up from 286)
 
 ### v2.2.0 — Agentic Workflow Layer (2026-08-10)
 
