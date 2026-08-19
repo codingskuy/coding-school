@@ -57,13 +57,6 @@ export function initLearningEnv(projectDir: string, topic: string, folderName: s
       xp: 0,
       level: 1,
     })
-
-    if (gitInitialized) {
-      try {
-        execSync("git add -A", { cwd: folderPath, encoding: "utf-8", timeout: 10000, stdio: ["pipe", "pipe", "pipe"] })
-        execSync(`git commit -m "init: learning environment for ${topic}"`, { cwd: folderPath, encoding: "utf-8", timeout: 10000, stdio: ["pipe", "pipe", "pipe"] })
-      } catch { /* initial commit is best-effort */ }
-    }
   } catch {
     // Non-fatal: .codingschool setup may partially fail
   }
@@ -77,33 +70,5 @@ export function initLearningEnv(projectDir: string, topic: string, folderName: s
     folderPath,
     gitInitialized,
     message: `Learning environment ready!\n\n📁 Folder: ${folderName}/\n${gitMsg}\n📂 .codingschool/ structure created.\n\nAll your learning, code, and projects will happen inside this folder.`,
-  }
-}
-
-
-export function autoCommit(folderPath: string, message: string): boolean {
-  try {
-    execSync("git add -A", { cwd: folderPath, encoding: "utf-8", timeout: 10000, stdio: ["pipe", "pipe", "pipe"] })
-  } catch {
-    return false
-  }
-
-  try {
-    const diff = execSync("git diff --cached --stat", { cwd: folderPath, encoding: "utf-8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"] }).trim()
-    if (!diff) return false
-  } catch {
-    return false
-  }
-
-  try {
-    execSync(`git commit -m "${message.replace(/"/g, '\\"')}"`, {
-      cwd: folderPath,
-      encoding: "utf-8",
-      timeout: 10000,
-      stdio: ["pipe", "pipe", "pipe"],
-    })
-    return true
-  } catch {
-    return false
   }
 }

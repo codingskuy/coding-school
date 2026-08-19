@@ -33,7 +33,7 @@ import { diagnoseStudent, generateDiagnosisQuestions, buildInitialDiagnosisPromp
 import { getScaffolding, buildScaffoldingPrompt, shouldEscalateHint } from "./scaffolding"
 import { announceDiagnosis, getTeachingSignals, getCoachBriefing, announceCapstone, announceProjectComplete } from "./context"
 import { checkRequirements, renderRequirementsReport } from "./requirements"
-import { initLearningEnv, autoCommit } from "./init-learning-env"
+import { initLearningEnv } from "./init-learning-env"
 import { checkPublishEnv, previewPublish, publishToGitHub } from "./publish"
 import { recordTool, checkAdvisories } from "./workflow"
 import { traceTool } from "./trace"
@@ -198,7 +198,6 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
           }
           const notes = args.notes || ""
           const handbook = generateHandbook(projectDir, args.topic, args.item, notes, progress)
-          autoCommit(projectDir, `learn: ${args.item}`)
           const warningLines = warnings.map(w => `> ⚠️ ${w}`).join("\n")
           const tp = Object.values(progress.topics).find(
             t => t.name.toLowerCase() === args.topic.toLowerCase(),
@@ -790,7 +789,6 @@ Continue learning or start a new topic?`
             topic: args.topic,
             summary: args.summary,
           })
-          autoCommit(projectDir, `feat: ${args.projectName}`)
           recordTool(projectDir, { toolName: "cs_announce_project_complete", projectName: args.projectName })
           return `Project completion recorded. The Teacher agent will see it and continue the roadmap.
 
@@ -1129,23 +1127,25 @@ CRITICAL RULES:
     b) Call cs_init_learning_env(topic="...", folderName="...") to create the folder + git init + .codingschool structure
     c) ALL learning, code, and projects MUST happen inside this folder
     d) NEVER allow the student to work outside this folder
-    e) Git is auto-initialized — every milestone (concept complete, project done) creates a commit automatically
+    e) After each milestone (concept complete, project done), guide the student to commit:
+       "Jangan lupa commit perubahanmu! Jalankan: \`git add -A && git commit -m \"learn: [nama item]\"\`"
 15. GIT BASICS (WHEN NEEDED): If git is not installed:
     a) Explain: "Git is like Google Docs version history — it saves versions of your work so you can go back anytime"
     b) Guide install: macOS → \`brew install git\`, Linux → \`sudo apt install git\`, Windows → download from git-scm.com
     c) Configure: \`git config --global user.name "Your Name"\` and \`git config --global user.email "your@email.com"\`
     d) Keep minimal — NEVER teach branching, merge conflicts, or rebasing. Only: init, add, commit, push
 16. COMPLETION RECOMMENDATION (MANDATORY): When the student completes ALL items in a roadmap (100% progress):
-    a) First, ask if they want to publish their learning folder to GitHub via cs_publish_handbook(action="check")
-    b) If yes, guide them through preview → confirm → publish
-    c) Then, call the "question" tool to ask if they want recommendations for what to learn next
-    d) If yes, analyze their competency scores (from cs_engineering_status output) and learning patterns to suggest 2-3 next topics:
+    a) First, remind: "Sebelum publish, pastikan semua sudah di-commit! Jalankan: \`git add -A && git commit -m \"final progress\"\`"
+    b) Then, ask if they want to publish their learning folder to GitHub via cs_publish_handbook(action="check")
+    c) If yes, guide them through preview → confirm → publish
+    d) Then, call the "question" tool to ask if they want recommendations for what to learn next
+    e) If yes, analyze their competency scores (from cs_engineering_status output) and learning patterns to suggest 2-3 next topics:
        - Topics that EXTEND what they just learned (natural progression)
        - Topics that DEEPEN their expertise in the current domain
        - Topics that COMPLEMENT weak areas (low engineering competency dimensions)
-    e) For each recommendation, explain WHY based on their specific scores and progress.
-    f) If they choose a topic, call cs_init_learning_env first, then cs_create_roadmap to start the new journey.
-    g) Always leave the student with a clear next step — never let the journey end at "congratulations".`
+    f) For each recommendation, explain WHY based on their specific scores and progress.
+    g) If they choose a topic, call cs_init_learning_env first, then cs_create_roadmap to start the new journey.
+    h) Always leave the student with a clear next step — never let the journey end at "congratulations".`
 
 const COACH_SYSTEM_PROMPT = `You are Coach — a software engineering project mentor & guide with GRC (Governance, Risk, Compliance) awareness. You guide users through real-industry project development from planning to completion.
 

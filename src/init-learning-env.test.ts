@@ -2,9 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test"
 import { mkdtempSync, rmSync, existsSync, readFileSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
-import { execSync } from "child_process"
 
-import { initLearningEnv, autoCommit } from "./init-learning-env"
+import { initLearningEnv } from "./init-learning-env"
 
 let tmpDir: string
 
@@ -15,13 +14,6 @@ beforeEach(() => {
 afterEach(() => {
   rmSync(tmpDir, { recursive: true, force: true })
 })
-
-function configureGit(dir: string) {
-  try {
-    execSync("git config user.email 'test@test.com'", { cwd: dir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] })
-    execSync("git config user.name 'Test'", { cwd: dir, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] })
-  } catch { /* best effort */ }
-}
 
 describe("initLearningEnv", () => {
   it("creates folder and .codingschool structure", () => {
@@ -59,28 +51,5 @@ describe("initLearningEnv", () => {
     const prog = JSON.parse(readFileSync(join(tmpDir, "react-fundamentals", ".codingschool", "progress.json"), "utf-8"))
     expect(prog.topics).toEqual({})
     expect(prog.xp).toBe(0)
-  })
-})
-
-describe("autoCommit", () => {
-  it("commits staged changes", () => {
-    const result = initLearningEnv(tmpDir, "React", "react-fundamentals")
-    const folder = result.folderPath
-    configureGit(folder)
-
-    const { writeFileSync } = require("fs")
-    writeFileSync(join(folder, "test.md"), "# Hello")
-
-    const committed = autoCommit(folder, "test: initial file")
-    expect(committed).toBe(true)
-  })
-
-  it("returns false when nothing to commit", () => {
-    const result = initLearningEnv(tmpDir, "React", "react-fundamentals")
-    const folder = result.folderPath
-    configureGit(folder)
-
-    const committed = autoCommit(folder, "test: nothing")
-    expect(committed).toBe(false)
   })
 })
