@@ -3,7 +3,9 @@
 ## 2.2.1 - 2026-08-17
 
 ### Added
+- Requirement checking: new `cs_check_requirements` tool with built-in topic registry (mobile, web, uiux, data-science, devops, rust, go), system tool detection via shell, MCP server detection via `opencode.json` — Teacher calls before teaching, Coach calls before project planning
 - Teacher ↔ Coach capstone handoff: new `cs_prepare_capstone` (Teacher hands the roadmap's `## Final Project` to Coach; `currentPhase` → `project`) and `cs_announce_project_complete` (Coach records the finished project so Teacher can close the roadmap; `currentPhase` → `done`)
+- Phase project handoff: Teacher now hands off phase projects (not just capstone) via `cs_prepare_capstone` with `type="phase"`; `PendingProject` tracks phase projects for auto-detection of the next phase
 - Checkbox enforcement: AI-generated roadmaps are normalized to `- [ ]`/`- [x]` checklist items (numbered lists and bare bullets auto-converted, fenced code blocks untouched) so parsers and progress stay in sync
 - `currentItem` / `lastCompletedItem` tracked per topic and shown by `cs_list_roadmap_items`, `cs_update_progress`, and `cs_resume_session` so the agent always knows where the student is
 - `cs_list_roadmap_items` now reads all level files in a topic dir (beginner/intermediate/expert), not just the first

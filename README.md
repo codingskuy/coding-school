@@ -9,7 +9,7 @@
 [![Version](https://img.shields.io/badge/version-2.2.1-blue.svg)](https://github.com/codingskuy/codingschool)
 [![Installs](https://img.shields.io/badge/installs-1,000-brightgreen?logo=npm)](https://www.npmjs.com/package/@codingskuy/coding-school)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Tests](https://img.shields.io/badge/tests-304%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-334%20passing-brightgreen.svg)](#development)
 [![OpenCode](https://img.shields.io/badge/OpenCode-v0.7+-purple.svg)](https://opencode.ai)
 
 ---
@@ -53,10 +53,10 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 │  │  open                    │   │                           │   │
 │  └──────────────────────────┘   └──────────────────────────┘   │
 │                                                                 │
-│  📖 304 TESTS                  🆕 cs_prepare_capstone         │
+│  📖 334 TESTS                  🆕 REQUIREMENT CHECKING          │
 │  ┌──────────────────────────┐   ┌──────────────────────────┐   │
-│  │  100% passing            │   │  + cs_announce_project_  │   │
-│  │                          │   │  complete                │   │
+│  │  100% passing            │   │  Teacher & Coach verify   │   │
+│  │                          │   │  tools/MCP before teaching │   │
 │  └──────────────────────────┘   └──────────────────────────┘   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -185,6 +185,7 @@ Then restart OpenCode and switch agent in the dropdown.
 | `cs_update_progress` | Mark items done, award XP, append narrative notes to learning handbook. Pass `notes` (Theory + Practice) to build a permanent learning journal | After each concept |
 | `cs_assess_quiz` | Bloom's taxonomy rubric | Quiz time |
 | `cs_prepare_capstone` | Hand the roadmap's Final Project to the Coach agent | All non-capstone items done |
+| `cs_check_requirements` | Verify system tools & MCP servers for a topic | Before starting a new topic |
 | `cs_resume_session` | Load last checkpoint | Session start |
 
 ### Coach Tools
@@ -204,6 +205,7 @@ Then restart OpenCode and switch agent in the dropdown.
 | `cs_grc_scan` | OWASP, secrets, validation | Security concerns |
 | `cs_mentoring_plan` | Personalized growth plan | Periodic check-in |
 | `cs_engineering_status` | 8-dimension competency view | Progress review |
+| `cs_check_requirements` | Verify system tools & MCP servers for a topic | Before starting project work |
 | `cs_coach_dialog` | Conversation interface | Legacy compatibility |
 
 ---
