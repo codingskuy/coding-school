@@ -33,6 +33,8 @@ import { diagnoseStudent, generateDiagnosisQuestions, buildInitialDiagnosisPromp
 import { getScaffolding, buildScaffoldingPrompt, shouldEscalateHint } from "./scaffolding"
 import { announceDiagnosis, getTeachingSignals, getCoachBriefing, announceCapstone, announceProjectComplete } from "./context"
 import { checkRequirements, renderRequirementsReport } from "./requirements"
+import { initLearningEnv, autoCommit } from "./init-learning-env"
+import { checkPublishEnv, previewPublish, publishToGitHub } from "./publish"
 import { recordTool, checkAdvisories } from "./workflow"
 import { traceTool } from "./trace"
 import { scaffoldingOffset, applyScaffoldingOffset } from "./meta"
@@ -196,6 +198,7 @@ const CodingSchoolPlugin: Plugin = async ({ directory }) => {
           }
           const notes = args.notes || ""
           const handbook = generateHandbook(projectDir, args.topic, args.item, notes, progress)
+          autoCommit(projectDir, `learn: ${args.item}`)
           const warningLines = warnings.map(w => `> ⚠️ ${w}`).join("\n")
           const tp = Object.values(progress.topics).find(
             t => t.name.toLowerCase() === args.topic.toLowerCase(),
@@ -787,6 +790,7 @@ Continue learning or start a new topic?`
             topic: args.topic,
             summary: args.summary,
           })
+          autoCommit(projectDir, `feat: ${args.projectName}`)
           recordTool(projectDir, { toolName: "cs_announce_project_complete", projectName: args.projectName })
           return `Project completion recorded. The Teacher agent will see it and continue the roadmap.
 
@@ -896,6 +900,47 @@ Tell the student:
           return renderRequirementsReport(report)
         },
       }),
+
+      cs_init_learning_env: tool({
+        description:
+          "Initialize a dedicated learning folder with git and .codingschool structure. Call when starting a new topic. The student must choose a folder name first.",
+        args: {
+          topic: tool.schema.string(),
+          folderName: tool.schema.string(),
+        },
+        async execute(args) {
+          const result = initLearningEnv(projectDir, args.topic, args.folderName)
+          recordTool(projectDir, { toolName: "cs_init_learning_env", topic: args.topic })
+          return result.message
+        },
+      }),
+
+      cs_publish_handbook: tool({
+        description:
+          "Check, preview, or publish the learning folder to GitHub. Actions: 'check' (detect git/gh), 'preview' (list files + commits), 'publish' (create repo + push).",
+        args: {
+          action: tool.schema.enum(["check", "preview", "publish"]),
+          repoName: tool.schema.optional(tool.schema.string()),
+          private: tool.schema.optional(tool.schema.boolean()),
+        },
+        async execute(args) {
+          if (args.action === "check") {
+            const report = checkPublishEnv(projectDir)
+            recordTool(projectDir, { toolName: "cs_publish_handbook", topic: "check" })
+            return report.message
+          }
+          if (args.action === "preview") {
+            const report = previewPublish(projectDir)
+            recordTool(projectDir, { toolName: "cs_publish_handbook", topic: "preview" })
+            return report.message
+          }
+          const repoName = args.repoName || "codingschool-handbook"
+          const isPrivate = args.private !== false
+          const report = publishToGitHub(projectDir, repoName, isPrivate)
+          recordTool(projectDir, { toolName: "cs_publish_handbook", topic: repoName })
+          return report.message
+        },
+      }),
     },
 
     config: async (config) => {
@@ -980,6 +1025,8 @@ AVAILABLE TOOLS:
 - cs_assess_quiz: Evaluate answers with a 5-dimension rubric (recall, comprehension, application, analysis, creation).
 - cs_prepare_capstone: Hand a roadmap project (phase project or capstone) to the Coach agent. Use type="phase" for phase projects, type="capstone" for the final project.
 - cs_check_requirements: Check if the student's system has required tools and MCP servers for a topic. Call BEFORE starting to teach.
+- cs_init_learning_env: Initialize a dedicated learning folder with git and .codingschool structure. Call when starting a new topic.
+- cs_publish_handbook: Check, preview, or publish the learning folder to GitHub. Call after roadmap completion.
 - cs_resume_session: Resume the last checkpoint.
 
 CHECKPOINT WORKFLOW (MANDATORY):
@@ -1077,15 +1124,28 @@ CRITICAL RULES:
     a) Mark the project items done via cs_update_progress, using the Coach's project summary as the \`notes\` for the handbook.
     b) If this was a PHASE project: call cs_list_roadmap_items, find the next incomplete phase, and continue teaching from there.
     c) If this was the CAPSTONE (Final Project): celebrate the milestone, and run a closing reflection (cs_reflect, type="after-challenge").
-14. COMPLETION RECOMMENDATION (MANDATORY): When the student completes ALL items in a roadmap (100% progress):
-    a) Call the "question" tool to congratulate them and ask if they want recommendations for what to learn next.
-    b) If yes, analyze their competency scores (from cs_engineering_status output) and learning patterns to suggest 2-3 next topics:
+14. LEARNING ENVIRONMENT (MANDATORY): When starting a new topic:
+    a) Ask the student to choose a folder name via the "question" tool (e.g. "react-fundamentals", "belajar-java")
+    b) Call cs_init_learning_env(topic="...", folderName="...") to create the folder + git init + .codingschool structure
+    c) ALL learning, code, and projects MUST happen inside this folder
+    d) NEVER allow the student to work outside this folder
+    e) Git is auto-initialized — every milestone (concept complete, project done) creates a commit automatically
+15. GIT BASICS (WHEN NEEDED): If git is not installed:
+    a) Explain: "Git is like Google Docs version history — it saves versions of your work so you can go back anytime"
+    b) Guide install: macOS → \`brew install git\`, Linux → \`sudo apt install git\`, Windows → download from git-scm.com
+    c) Configure: \`git config --global user.name "Your Name"\` and \`git config --global user.email "your@email.com"\`
+    d) Keep minimal — NEVER teach branching, merge conflicts, or rebasing. Only: init, add, commit, push
+16. COMPLETION RECOMMENDATION (MANDATORY): When the student completes ALL items in a roadmap (100% progress):
+    a) First, ask if they want to publish their learning folder to GitHub via cs_publish_handbook(action="check")
+    b) If yes, guide them through preview → confirm → publish
+    c) Then, call the "question" tool to ask if they want recommendations for what to learn next
+    d) If yes, analyze their competency scores (from cs_engineering_status output) and learning patterns to suggest 2-3 next topics:
        - Topics that EXTEND what they just learned (natural progression)
        - Topics that DEEPEN their expertise in the current domain
        - Topics that COMPLEMENT weak areas (low engineering competency dimensions)
-    c) For each recommendation, explain WHY based on their specific scores and progress.
-    d) If they choose a topic, call cs_create_roadmap to start the new journey.
-    e) Always leave the student with a clear next step — never let the journey end at "congratulations".`
+    e) For each recommendation, explain WHY based on their specific scores and progress.
+    f) If they choose a topic, call cs_init_learning_env first, then cs_create_roadmap to start the new journey.
+    g) Always leave the student with a clear next step — never let the journey end at "congratulations".`
 
 const COACH_SYSTEM_PROMPT = `You are Coach — a software engineering project mentor & guide with GRC (Governance, Risk, Compliance) awareness. You guide users through real-industry project development from planning to completion.
 
