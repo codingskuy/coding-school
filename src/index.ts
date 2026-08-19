@@ -32,6 +32,7 @@ import { progressPath } from "./utils/paths"
 import { diagnoseStudent, generateDiagnosisQuestions, buildInitialDiagnosisPrompt } from "./diagnosis"
 import { getScaffolding, buildScaffoldingPrompt, shouldEscalateHint } from "./scaffolding"
 import { announceDiagnosis, getTeachingSignals, getCoachBriefing, announceCapstone, announceProjectComplete } from "./context"
+import { checkRequirements, renderRequirementsReport } from "./requirements"
 import { recordTool, checkAdvisories } from "./workflow"
 import { traceTool } from "./trace"
 import { scaffoldingOffset, applyScaffoldingOffset } from "./meta"
@@ -882,6 +883,19 @@ Tell the student:
           })
         },
       }),
+
+      cs_check_requirements: tool({
+        description:
+          "Check if the student's system has the required tools and MCP servers for a topic. Call BEFORE starting to teach a new topic or build a project. Returns a report of installed/missing tools and MCP servers with install instructions.",
+        args: {
+          topic: tool.schema.string(),
+        },
+        async execute(args) {
+          const report = checkRequirements(projectDir, args.topic)
+          recordTool(projectDir, { toolName: "cs_check_requirements", topic: args.topic })
+          return renderRequirementsReport(report)
+        },
+      }),
     },
 
     config: async (config) => {
@@ -965,6 +979,7 @@ AVAILABLE TOOLS:
 - cs_update_progress: Mark items done to track progress and award XP.
 - cs_assess_quiz: Evaluate answers with a 5-dimension rubric (recall, comprehension, application, analysis, creation).
 - cs_prepare_capstone: Hand a roadmap project (phase project or capstone) to the Coach agent. Use type="phase" for phase projects, type="capstone" for the final project.
+- cs_check_requirements: Check if the student's system has required tools and MCP servers for a topic. Call BEFORE starting to teach.
 - cs_resume_session: Resume the last checkpoint.
 
 CHECKPOINT WORKFLOW (MANDATORY):
@@ -1008,6 +1023,13 @@ DIAGNOSIS-FIRST WORKFLOW:
    - If nextStep is "challenge": give an advanced challenge
    - If nextStep is "deepen": use analysis/evaluation exercises
    - If nextStep is "create": give a creative/build project
+
+REQUIREMENT CHECK (MANDATORY):
+Before starting to teach a new topic, call cs_check_requirements(topic="...") to verify the student's system has the required tools and MCP servers.
+- If all requirements met → proceed with diagnosis and teaching
+- If required tools missing → present the report, guide student to install/configure, wait for confirmation, then call cs_check_requirements again to verify
+- If optional MCP missing → warn but proceed: "There's an optional MCP server that would improve the experience, but it's not required."
+- This check prevents the student from getting stuck mid-learning due to missing tools.
 
 SCAFFOLDING RULES (cs_teach_concept):
 - Always start at hint level 1 (Socratic questioning)
@@ -1092,6 +1114,7 @@ AVAILABLE TOOLS:
 - cs_grc_scan: Scan code for governance, risk, and compliance issues (OWASP Top 10).
 - cs_mentoring_plan: Generate a personalized engineering growth plan based on competency scores.
 - cs_engineering_status: Display current engineering competency across 8 dimensions.
+- cs_check_requirements: Check if the student's system has required tools and MCP servers for a topic. Call BEFORE starting project work.
 - cs_resume_session: Resume the last checkpoint.
 
 === Claim Gate Tools (pair-programming model) ===
@@ -1125,13 +1148,14 @@ Start at junior; go up one level each time the user fails the gate (junior → m
 === PROJECT GUIDE WORKFLOW (MANDATORY) ===
 
 PHASE 1 — PROJECT PLANNING:
-1. User mentions a project idea → use "question" tool to gather: project name, description, tech stack, milestones
-2. Call cs_architecture_review to assess the initial design
-3. After user approves the plan, call cs_timeline_init to create the timeline
-4. Call cs_timeline_add to add sprints under milestones, then epics under sprints
-5. Call cs_timeline_list to show the full plan to the user
-6. If user agrees on structure, use "question" tool to ask if they want scaffolding
-7. If yes, call cs_project_scaffold ONLY after user explicitly approves the structure
+1. Call cs_check_requirements(topic="...") to verify system tools and MCP servers are ready. Guide installation if missing.
+2. User mentions a project idea → use "question" tool to gather: project name, description, tech stack, milestones
+3. Call cs_architecture_review to assess the initial design
+4. After user approves the plan, call cs_timeline_init to create the timeline
+5. Call cs_timeline_add to add sprints under milestones, then epics under sprints
+6. Call cs_timeline_list to show the full plan to the user
+7. If user agrees on structure, use "question" tool to ask if they want scaffolding
+8. If yes, call cs_project_scaffold ONLY after user explicitly approves the structure
 
 PHASE 2 — FEATURE GENERATION + COMPREHENSION CLAIM GATE (per sprint/epic):
 1. Pick the next todo item from cs_timeline_list
