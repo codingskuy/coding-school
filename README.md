@@ -6,10 +6,10 @@
 
 **Two agents. One mission. Real understanding.**
 
-[![Version](https://img.shields.io/badge/version-2.2.1-blue.svg)](https://github.com/codingskuy/codingschool)
+[![Version](https://img.shields.io/badge/version-2.2.2-blue.svg)](https://github.com/codingskuy/codingschool)
 [![Installs](https://img.shields.io/badge/installs-1,000-brightgreen?logo=npm)](https://www.npmjs.com/package/@codingskuy/coding-school)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Tests](https://img.shields.io/badge/tests-334%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-356%20passing-brightgreen.svg)](#development)
 [![OpenCode](https://img.shields.io/badge/OpenCode-v0.7+-purple.svg)](https://opencode.ai)
 
 ---
@@ -27,42 +27,34 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 
 ---
 
-## ✨ What's New in v2.2.1
+## ✨ What's New in v2.2.2
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  v2.2.1 — Teacher ↔ Coach Capstone Handoff                      │
+│  v2.2.2 — Learning Folder + Git Workflow + Publication          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ✅ CHECKBOX ROADMAPS          🔄 CAPSTONE HANDOFF              │
+│  📁 LEARNING ENVIRONMENT       🔄 GIT AUTO-COMMIT              │
 │  ┌──────────────────────────┐   ┌──────────────────────────┐   │
-│  │  Auto-converted to       │   │  Theory/Practice done    │   │
-│  │  - [ ] checklist items   │   │  → Teacher → Coach       │   │
+│  │  Per-topic folder with   │   │  Every concept/project    │   │
+│  │  git init + .codingschool│   │  completion = 1 commit    │   │
 │  └──────────────────────────┘   └──────────────────────────┘   │
 │                                                                 │
-│  🎯 CURRENT & LAST PROGRESS    🏁 PROJECT COMPLETE            │
+│  🚀 PUBLISH TO GITHUB          🧭 NEXT-STEP RECOMMENDATIONS    │
 │  ┌──────────────────────────┐   ┌──────────────────────────┐   │
-│  │  cs_list_roadmap_items   │   │  All milestones done      │   │
-│  │  shows Current / Last    │   │  → Coach → Teacher        │   │
+│  │  cs_publish_handbook:    │   │  Analyzes competency +    │   │
+│  │  check → preview → push  │   │  suggests next topics     │   │
 │  └──────────────────────────┘   └──────────────────────────┘   │
 │                                                                 │
-│  🔒 CLAIM-GATE ENFORCED        🧹 COACH TOOL CLEANUP           │
+│  📖 356 TESTS                  🆕 cs_init_learning_env         │
 │  ┌──────────────────────────┐   ┌──────────────────────────┐   │
-│  │  Writes denied unless a  │   │  Teacher-only tools       │   │
-│  │  comprehension claim is  │   │  removed from Coach       │   │
-│  │  open                    │   │                           │   │
-│  └──────────────────────────┘   └──────────────────────────┘   │
-│                                                                 │
-│  📖 334 TESTS                  🆕 REQUIREMENT CHECKING          │
-│  ┌──────────────────────────┐   ┌──────────────────────────┐   │
-│  │  100% passing            │   │  Teacher & Coach verify   │   │
-│  │                          │   │  tools/MCP before teaching │   │
+│  │  100% passing            │   │  + cs_publish_handbook    │   │
 │  └──────────────────────────┘   └──────────────────────────┘   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**The learning journey now flows end-to-end:** Teacher builds a checkbox roadmap and tracks Current/Last progress → hands the capstone to Coach → Coach builds the project with the professional workflow (claim gate enforced) → Coach records completion and sends the student back → Teacher closes the roadmap and reflects.
+**Your learning journey now has a complete home:** Each topic gets its own folder with git initialized from day one. Every concept you learn creates a commit. When you finish, publish your entire learning history to GitHub as a portfolio.
 
 ---
 
@@ -186,6 +178,8 @@ Then restart OpenCode and switch agent in the dropdown.
 | `cs_assess_quiz` | Bloom's taxonomy rubric | Quiz time |
 | `cs_prepare_capstone` | Hand the roadmap's Final Project to the Coach agent | All non-capstone items done |
 | `cs_check_requirements` | Verify system tools & MCP servers for a topic | Before starting a new topic |
+| `cs_init_learning_env` | Create dedicated learning folder with git + .codingschool | Start of new topic |
+| `cs_publish_handbook` | Check, preview, or publish learning folder to GitHub | After roadmap completion |
 | `cs_resume_session` | Load last checkpoint | Session start |
 
 ### Coach Tools
@@ -212,7 +206,7 @@ Then restart OpenCode and switch agent in the dropdown.
 
 ## 📖 Learning Handbook
 
-Every time progress is recorded via `cs_update_progress`, a **learning handbook** is automatically generated in `.codingschool/handbook/`.
+Every time progress is recorded via `cs_update_progress`, a **learning handbook** is automatically generated in `.codingschool/handbook/` **and a git commit is created automatically**, building your complete learning history.
 
 ### Structure
 

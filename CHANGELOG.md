@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.2.2 - 2026-08-19
+
+### Added
+- Learning environment: `cs_init_learning_env` creates a dedicated folder per topic with `git init` + `.codingschool/` structure + initial commit — all learning, code, and projects stay inside this folder
+- Git auto-commit: every concept completion (`cs_update_progress`) and project completion (`cs_announce_project_complete`) creates a git commit automatically, building a full learning history
+- GitHub publication: `cs_publish_handbook` with 3 actions — `check` (detect git/gh), `preview` (list files + git log), `publish` (create GitHub repo + push via `gh` CLI or manual instructions)
+- Next-step recommendation: `generateRecommendations()` analyzes competency scores + engineering gaps + learning velocity to suggest 2-3 next topics (extend/deepen/complement) after roadmap completion
+
+### Changed
+- `TEACHER_SYSTEM_PROMPT`: rule 14 (LEARNING ENVIRONMENT — folder + git init), rule 15 (GIT BASICS — minimal git teaching), rule 16 (COMPLETION RECOMMENDATION — publish + next steps)
+- `cs_update_progress`: now auto-commits changes after handbook update
+- `cs_announce_project_complete`: now auto-commits after recording project completion
+
 ## 2.2.1 - 2026-08-17
 
 ### Added
