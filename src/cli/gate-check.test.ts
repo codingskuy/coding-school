@@ -53,7 +53,7 @@ describe("gate-check (exit-code format)", () => {
   })
 
   it("covers every host's file-writing tool names", () => {
-    for (const tool_name of ["Write", "Edit", "MultiEdit", "NotebookEdit", "write", "edit", "strreplace"]) {
+    for (const tool_name of ["Write", "Edit", "MultiEdit", "NotebookEdit", "write", "edit", "strreplace", "apply_patch", "str_replace_editor"]) {
       expect(run({ cwd: tmpDir, tool_name }).exitCode).toBe(2)
     }
   })
@@ -116,6 +116,14 @@ describe("gate-check --scope persona", () => {
 
   it("rejects an unknown --scope", () => {
     expect(run({ cwd: tmpDir }, { argv: ["--scope", "nope"] }).exitCode).toBe(2)
+  })
+})
+
+describe("gate-check --persona", () => {
+  it("takes the persona from the flag when the payload has no agent_type", () => {
+    openClaimIn(tmpDir)
+    expect(run({ cwd: tmpDir, tool_name: "write" }, { argv: ["--persona", "teacher"] }).exitCode).toBe(2)
+    expect(run({ cwd: tmpDir, tool_name: "write" }, { argv: ["--persona", "coach", "--scope", "persona"] }).exitCode).toBe(0)
   })
 })
 

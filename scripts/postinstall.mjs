@@ -1,16 +1,16 @@
 const BANNER = `
 ╔══════════════════════════════════════════════════════════╗
 ║                                                          ║
-║              @codingskuy/coding-school v2.1               ║
+║   @codingskuy/coding-school — AI Engineering Mentor      ║
+║   Teacher + Coach personas                               ║
 ║                                                          ║
-║     AI Engineering Mentor plugin for OpenCode             ║
-║                                                          ║
-║   Next step — configure your setup:                      ║
+║   Next step — set up your agent host:                    ║
 ║                                                          ║
 ║     npx @codingskuy/coding-school setup                  ║
+║       (OpenCode, default)                                ║
 ║                                                          ║
-║   This will register CodingSchool in your opencode.json   ║
-║   and let you select AI tools (Teacher + Coach).          ║
+║     npx @codingskuy/coding-school setup --platform <p>   ║
+║       claude-code | pi | dsh | mcp                       ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
 `

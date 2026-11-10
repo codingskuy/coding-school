@@ -32,7 +32,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "bun build src/index.ts src/tui.ts src/gate-check.ts src/mcp.ts src/pi.ts --outdir dist --external @opencode-ai/plugin --external @opentui/solid --external '@earendil-works/*' --target node && tsc --emitDeclarationOnly --outDir dist",
+    "build": "bun build src/index.ts src/tui.ts src/gate-check.ts src/mcp.ts src/pi.ts src/dsh-setup.ts --outdir dist --external @opencode-ai/plugin --external @opentui/solid --external '@earendil-works/*' --target node && tsc --emitDeclarationOnly --outDir dist",
     "build:quick": "bun build src/index.ts --outdir dist --external @opencode-ai/plugin --target node",
     "test": "bun test",
     "typecheck": "tsc --noEmit",

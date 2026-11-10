@@ -7,7 +7,8 @@ import type { PersonaId } from "../personas/types"
 
 // Host-neutral claim-gate entrypoint for pre-tool hooks.
 //
-//   coding-school gate-check [--project-dir <dir>] [--format exit-code|json] [--scope all|persona]
+//   coding-school gate-check [--project-dir <dir>] [--format exit-code|json]
+//                            [--scope all|persona] [--persona teacher|coach]
 //
 // Reads the hook payload (JSON) from stdin. Claude Code shape:
 //   { cwd, tool_name, tool_input, agent_type?, ... }
@@ -21,9 +22,15 @@ import type { PersonaId } from "../personas/types"
 // --scope persona: gate only sessions running a CodingSchool persona
 //   (agent_type teacher / coach). Used by the Claude Code plugin, whose hooks
 //   fire in every session, so it never blocks writes outside CodingSchool.
+//
+// --persona: the persona of the session, for hosts whose hook payload has no
+//   agent_type (DeepSeek Harness mounts a per-persona hook instead).
 
-// File-writing tool names across hosts (Claude Code, OpenCode, Pi).
-const WRITE_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "write", "edit", "strreplace"])
+// File-writing tool names across hosts: Claude Code, OpenCode, Pi, DeepSeek Harness.
+const WRITE_TOOLS = new Set([
+  "Write", "Edit", "MultiEdit", "NotebookEdit",
+  "write", "edit", "strreplace", "apply_patch", "str_replace_editor",
+])
 
 export interface GateCheckInput {
   argv: string[]
@@ -73,7 +80,7 @@ export function evaluate(input: GateCheckInput): WriteDecision {
     return { allow: true, reason: `Tool "${payload.tool_name}" does not write files.` }
   }
 
-  const persona = personaFromAgentType(payload.agent_type)
+  const persona = personaFromAgentType(flag(input.argv, "--persona") ?? payload.agent_type)
   if (!persona && flag(input.argv, "--scope") === "persona") {
     return { allow: true, reason: "Not a CodingSchool persona session." }
   }

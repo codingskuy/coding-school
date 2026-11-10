@@ -58,6 +58,24 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 
 ---
 
+## 🧩 Supported Platforms
+
+Teacher and Coach are *personas*: each host has its own name for them (agent, mode, preset). Your progress lives in `.codingschool/`, so you can move between hosts.
+
+| | OpenCode | Claude Code | Pi | DeepSeek Harness | Other MCP hosts |
+|---|---|---|---|---|---|
+| Setup | `setup` | `setup --platform claude-code` | `setup --platform pi` | `setup --platform dsh` | `setup --platform mcp` |
+| Persona is called | primary agent | agent | mode | agent preset (DSH Web) | prompt (MCP) |
+| Switch persona | Tab / dropdown | new session: `claude --agent codingschool:coach` | `/teacher`, `/coach` | new session, pick the preset | pick the MCP prompt |
+| All 27 `cs_*` tools | ✅ | ✅ (MCP) | ✅ (MCP) | ✅ (MCP) | ✅ (MCP) |
+| Teacher can't write files | ✅ enforced | ✅ enforced | ✅ enforced | ✅ enforced (no writer tools) | prompt-only |
+| Coach writes only with a claim | ✅ enforced | ✅ enforced (hook) | ✅ enforced (write/edit) | ✅ with the hook bridge plugin | hook if the host has one |
+| Sidebar TUI | ✅ | — | — | — | — |
+
+"Prompt-only" means the persona is told the rule but the host does not enforce it. DeepSeek Harness is a developer preview, so its support is best effort: presets work in DSH Web (`dsh web --patch …`, written by `setup --platform dsh`); DSH Desktop and headless mode have no presets yet.
+
+---
+
 ## 🚀 Quick Start
 
 ```bash

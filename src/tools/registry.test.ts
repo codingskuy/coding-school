@@ -126,7 +126,7 @@ describe("platform switch hints in tool output", () => {
       opencode: "`opencode --agent coach`",
       "claude-code": "`claude --agent codingschool:coach`",
       pi: "`/coach`",
-      dsh: 'agent preset "coach"',
+      dsh: 'preset "Coach"',
       mcp: 'prompt "coach"',
     }
     for (const platform of PLATFORMS) {
@@ -162,7 +162,7 @@ describe("platform switch hints in tool output", () => {
       opencode: "`opencode --agent teacher`",
       "claude-code": "`claude --agent codingschool:teacher`",
       pi: "`/teacher`",
-      dsh: 'agent preset "teacher"',
+      dsh: 'preset "Teacher"',
       mcp: 'prompt "teacher"',
     }
     for (const platform of PLATFORMS) {

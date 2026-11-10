@@ -1,6 +1,6 @@
 # Rencana Implementasi: CodingSchool Multi-Platform
 
-> Status: **Fase 0–5 selesai, Fase 6 sedang berjalan** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
+> Status: **Fase 0–6 selesai, Fase 7 sedang berjalan** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
 > Target rilis: **v3.0.0**
 
 ## 1. Tujuan
@@ -14,7 +14,7 @@ Membuat CodingSchool (Teacher + Coach) bisa berjalan di beberapa agent harness s
 | OpenCode (sudah ada) | `tool()` plugin | hook `config` | hook `permission.ask` |
 | Claude Code | MCP server (stdio) di `.mcp.json` plugin | `agents/*.md` + `claude --agent teacher\|coach` | hook `PreToolUse` (exit 2) → `gate-check` |
 | Pi agent (`@earendil-works/pi-coding-agent` ≥ 1.0) | MCP server (Pi punya MCP bawaan sejak 0.87.1) | extension kecil: `/teacher` `/coach` via `before_agent_start` + `setActiveTools` | extension: event `tool_call` → `{ block: true }` |
-| DeepSeek Harness (`@deepseek-ai/dsh`, developer preview) — desktop, TUI, dan CLI | MCP server (`dsh-mcp-client`) | agent preset YAML (belum diverifikasi) | `dsh-hooks-claude-code` menjalankan `hooks.json` Claude Code (eksperimental) |
+| DeepSeek Harness (`@deepseek-ai/dsh` 0.2.2-rc.1, developer preview) — **Web** (preset); Desktop/headless belum | MCP server (`dsh-mcp-client`, di dalam preset) | agent preset (patch Cordis, `dsh web --patch`) | Teacher: preset tanpa tool penulis; Coach: `dsh-hooks-claude-code` → `gate-check --persona coach` |
 | Harness lain ber-MCP (Codewhale, Cursor, Codex, dll.) | MCP server | MCP prompts `teacher` / `coach` | hook bila ada (Codewhale: `tool_call_before` exit 2); selain itu **hanya prompt** |
 
 **Konsekuensi:** server MCP menjadi adapter universal. Adapter khusus platform hanya mengurus persona dan claim gate.
@@ -41,7 +41,7 @@ CodingSchool memakai pendekatan **custom agent**: Teacher dan Coach adalah dua *
 | OpenCode | *primary agent* | hook `config` → `config.agent[id]` | Tab / dropdown agent, `opencode --agent coach` | `permission.ask` |
 | Claude Code | *agent* (custom agent / subagent) | `agents/<id>.md` di plugin | sesi baru: `claude --agent coach` (F0-02) | `tools:` tanpa Write + hook `PreToolUse` |
 | Pi | *mode* / *preset* | extension: `registerCommand` + `before_agent_start` | `/teacher`, `/coach` di tengah sesi | `setActiveTools` + `tool_call` block |
-| DeepSeek Harness (desktop, TUI, CLI) | *agent preset* | preset YAML (`agent-preset-registry`) + plugin Cordis | pilih preset / command (diverifikasi di Fase 6) | hook `tools/pre-execute` / `dsh-hooks-claude-code` |
+| DeepSeek Harness (Web) | *agent preset* | patch Cordis berisi 2 baris `@deepseek-ai/dsh-agent-preset` (ditulis `setup --platform dsh`) | sesi baru, pilih preset di mode picker (preset terkunci setelah sesi dimulai) | Teacher tanpa tool penulis; Coach: hook bridge di dalam preset Coach |
 | Harness MCP generik | *prompt* | MCP prompts `teacher`, `coach` | memilih prompt di UI harness | hanya prompt (tidak ditegakkan) |
 
 **Aturan penamaan:**
@@ -446,40 +446,63 @@ scripts/
 
 ### Fase 6 — Setup Multi-Platform & Harness MCP Generik
 
+> **Status: SELESAI (2026-11-10)**.
+
 **Tujuan:** instalasi satu perintah untuk setiap platform.
 
 **Tugas:**
-- [ ] 6.1 `coding-school setup --platform opencode|claude-code|pi|mcp` (default: deteksi otomatis; perilaku lama tetap untuk `setup` tanpa flag).
-- [ ] 6.2 `--platform mcp` mencetak snippet konfigurasi MCP generik + peringatan bahwa claim gate hanya berbasis prompt.
-- [ ] 6.3 DeepSeek Harness (*best-effort*, developer preview), di **ketiga surface: desktop, TUI, CLI**:
-  - Verifikasi apakah ketiga surface memakai host plugin Cordis yang sama (satu paket plugin untuk semua) atau perlu konfigurasi terpisah (F0-09).
-  - Persona: daftarkan Teacher/Coach sebagai *agent preset* (YAML) dan cek cara berpindah preset di tiap surface.
-  - Tool: server MCP lewat `dsh-mcp-client`.
-  - `writePolicy`: hook `tools/pre-execute` / guard, atau `dsh-hooks-claude-code` dengan `hooks.json` dari Fase 4.
-  - Uji juga Codewhale (MCP + hook `tool_call_before`).
-- [ ] 6.3b `setup --platform claude-code` menawarkan izin `mcp__plugin_codingschool_cs__*` (F0-03).
-- [ ] 6.4 Perbarui `postinstall.mjs` agar tidak menganggap OpenCode satu-satunya target.
-- [ ] 6.5 README: matriks fitur per platform (termasuk sidebar TUI = OpenCode saja).
+- [x] 6.1 `coding-school setup --platform opencode|claude-code|pi|dsh|mcp` + `--yes` untuk mode non-interaktif. **Diubah dari rencana:** tanpa flag tetap OpenCode (bukan deteksi otomatis), demi kompatibilitas v2.2.2. Baris "PI Agent (coming soon)" di alur OpenCode dihapus.
+  - `claude-code`: mencetak perintah `/plugin marketplace add` / `/plugin install` / `claude --agent …`.
+  - `pi`: menjalankan `pi install npm:@codingskuy/coding-school` (dengan konfirmasi) bila `pi` ada di PATH; bila tidak, mencetak perintahnya.
+  - `dsh`: menulis patch preset + hooks Coach ke folder **baru** `$DSH_HOME/codingschool/` (dengan konfirmasi), lalu mencetak langkah instal hook bridge dan `dsh web --patch …`.
+- [x] 6.2 `--platform mcp` mencetak snippet `mcpServers` (`npx -y @codingskuy/coding-school mcp --platform mcp`), perintah `gate-check` untuk host yang punya hook, dan penjelasan bahwa tanpa hook gate hanya berbasis prompt.
+- [x] 6.3 DeepSeek Harness — hasil riset (dsh 0.2.2-rc.1, repo `fcc0ad4`) dan implementasi:
+  - **Surface (F0-09):** DSH punya **Web**, **Desktop** (Electron di atas Web), dan mode CLI `headless`/SDK/ACP. **Tidak ada TUI resmi.** Konfigurasi berbasis profil Cordis (`$DSH_HOME/profiles/<nama>/`); Desktop punya profil dan `node_modules` sendiri. Preset hanya dipasang oleh bundle Web (dipakai Web & Desktop); headless/SDK/ACP tidak punya preset.
+  - **Persona:** MCP prompts **tidak didukung** DSH → Teacher/Coach dijadikan dua `@deepseek-ai/dsh-agent-preset` dengan `@deepseek-ai/dsh-persona` (`prefix` = `renderPrompt(…, "dsh")`). Preset hanya bisa dipilih di sesi baru (tidak bisa pindah di tengah sesi).
+  - **Tool:** baris `@deepseek-ai/dsh-mcp-client` (`serverName: cs`, stdio `node dist/mcp.js --platform dsh`) di dalam tiap preset.
+  - **writePolicy:** Teacher = `dsh-tool-fs` dengan `write/edit/applyPatch: false`, tanpa `dsh-tool-bash` → tidak punya tool penulis sama sekali. Coach = `@deepseek-ai/dsh-hooks-claude-code` dipasang **di dalam preset Coach** dengan `coach-hooks.json` → `gate-check --persona coach`. Hook bridge DSH tidak mengirim `agent_type`, maka ditambahkan flag `--persona` di gate-check, plus nama tool penulis DSH (`apply_patch`, `str_replace_editor`).
+  - Implementasi: `src/dsh/patch.ts` (generator), entry `src/dsh-setup.ts` → `dist/dsh-setup.js` (30 KB).
+  - Codewhale **tidak diuji** → F6-05.
+- [x] 6.3b `setup --platform claude-code` menawarkan izin `mcp__plugin_codingschool_cs__*` di `~/.claude/settings.json` (atau `$CLAUDE_CONFIG_DIR`), dengan backup `.bak`; file JSON rusak tidak disentuh → F0-03 ditutup.
+- [x] 6.4 `postinstall.mjs`: banner tanpa nomor versi (sebelumnya basi "v2.1") dan menyebut semua platform; tetap hanya mencetak teks.
+- [x] 6.5 README: bagian "🧩 Supported Platforms" (matriks setup, istilah persona, cara berpindah, penegakan gate, sidebar TUI hanya OpenCode) + bagian "Pi".
+- [x] Tambahan: perbaikan bug lama `mkdirSync` tidak di-import di `scripts/cli.mjs` (F6-01).
 
 #### Gerbang Fase 6
 
 **Validasi**
-- [ ] `setup` tanpa flag berperilaku identik dengan v2.2.2.
-- [ ] Setiap `--platform` menghasilkan konfigurasi yang terbukti jalan (diuji di mesin bersih / direktori sementara).
+- [x] `setup --project` tanpa `--platform` membuat `opencode.json` berisi `plugin: ["@codingskuy/coding-school"]` seperti v2.2.2 (test).
+- [x] `--platform claude-code`: izin ditambahkan sekali, setting lain dan `deny` tetap utuh, backup dibuat, idempoten (test di `HOME` sementara).
+- [x] `--platform pi`: tanpa `pi` di PATH → mencetak perintah instal (test). Instal sebagai paket Pi sudah terbukti di Fase 5 (`packages` di `settings.json`).
+- [x] `--platform dsh`: patch dan hooks ditulis ke `$DSH_HOME/codingschool/` (test); patch hasil generator **dikomposisi oleh DSH 0.2.2-rc.1 asli** tanpa error (`dsh web --dump-config --patch …`, exit 0, kedua preset + baris MCP + baris gate terbaca).
+- [x] Hook Coach DSH dijalankan dengan payload persis milik hook bridge DSH (tanpa `agent_type`): `write`/`edit`/`apply_patch`/`str_replace_editor` ditolak tanpa claim, diizinkan dengan claim; `read` diizinkan (test).
+- [x] `--platform mcp`: snippet JSON valid (test). Server MCP generik sudah diuji dengan klien SDK resmi di Fase 3.
+- [ ] Sesi DSH Web dengan model sungguhan (memilih preset, memanggil `cs_*`, gate Coach) belum diuji: butuh API key DeepSeek → F6-03.
 
 **Audit**
-- [ ] `setup` tidak menimpa konfigurasi pengguna tanpa backup/konfirmasi.
-- [ ] `postinstall` tidak menulis ke luar direktori yang diharapkan dan tidak gagal di CI (non-TTY).
+- [x] Tidak ada konfigurasi pengguna yang ditimpa tanpa konfirmasi: semua penulisan butuh TTY + konfirmasi atau `--yes`; tanpa itu → "Skipped" (test). Claude Code: backup `.bak` + JSON rusak tidak disentuh. DSH: hanya menulis ke folder baru `codingschool/`, tidak mengubah `cordis.patch.yml` milik pengguna.
+- [x] `postinstall` hanya `console.log`, tidak membaca stdin dan tidak menulis file → aman di CI/non-TTY.
+- [x] Teks persona DSH tidak mengandung `{{` (yang akan diekspansi template `dsh-persona`) (test).
+- [x] Perintah eksternal di setup memakai `spawnSync` dengan array argumen (tanpa shell).
 
 **Test**
-- [ ] Test `setup` per platform di temp dir (cek file yang dihasilkan) → `___`
-- [ ] Uji harness MCP generik → `___`
+- [x] `src/cli/setup.test.ts` (12 test): platform tidak dikenal, default OpenCode, Claude Code (cetak, non-TTY, `--yes` + backup + idempoten, file baru, JSON rusak), Pi, DSH (tulis / tidak tulis), MCP → **lulus**
+- [x] `src/dsh/patch.test.ts` (6 test): preset + prompt, MCP, Teacher tanpa penulis, gate Coach, tanpa `{{`, hook Coach dengan payload DSH → **lulus**
+- [x] `gate-check`: nama tool DSH + `--persona` → **lulus**
+- [x] Uji komposisi di DSH asli (`--dump-config`) → **lulus**
+- [x] `bun test` total → **440 pass / 0 fail** (+18); `bun run typecheck` → **lulus**; `bun run build` → **lulus**
 
 **Log Issue**
 
 | ID | Severity | Deskripsi | Status | Resolusi |
 |---|---|---|---|---|
-| F6-01 | | | | |
+| F6-01 | Low | Bug lama: `ensureDir` di `scripts/cli.mjs` memanggil `mkdirSync` yang tidak di-import (ReferenceError bila folder belum ada). | Closed | Import ditambahkan; dipakai juga oleh penulisan `~/.claude/settings.json`. |
+| F6-02 | Medium | DSH: preset hanya ada di **Web**. Desktop memakai profil terpisah dan tidak bisa diberi `--patch`; headless/SDK/ACP tidak punya preset. Tidak ada TUI resmi, jadi target "desktop, TUI, CLI" dari pemilik produk belum bisa dipenuhi penuh. | Open | Didokumentasikan di README. Langkah lanjutan: kemas sebagai bundle plugin DSH (`"dsh": { "bundle": … }` di `package.json`) agar bisa dipasang di profil Desktop lewat `dsh plugin --profile desktop add`. Ditunda karena DSH mewajibkan pin versi persis (`engines.dsh`) dan peer dependency DSH yang akan membebani pengguna OpenCode. |
+| F6-03 | Medium | Sesi DSH dengan model sungguhan belum diuji (tidak ada API key DeepSeek di mesin dev). Belum terverifikasi saat runtime: hook bridge yang dipasang di dalam preset hanya menerima tool call preset itu. | Open → Fase 7 | Komposisi patch sudah diverifikasi di DSH asli; hook diuji dengan payload persis. Perlu dicoba sekali oleh pemilik produk. |
+| F6-04 | Medium | DSH masih developer preview: paket plugin mem-pin versi DSH persis, tag `latest` beberapa paket basi, dan `dsh-hooks-claude-code` masih eksperimental. Perubahan versi DSH bisa merusak integrasi. | Accepted | Setup mencetak `@<your dsh version>` untuk paket hook. Integrasi berstatus *best-effort* di README. |
+| F6-05 | Low | Codewhale (eks DeepSeek-TUI) belum diuji. | Deferred | Server MCP + `gate-check` (exit 2) sesuai mekanisme hook Codewhale (`tool_call_before`); diuji setelah v3.0.0 bila ada permintaan. |
+| F0-03 | Medium | (dari Fase 0) izin tool MCP Claude Code. | Closed | `setup --platform claude-code` menawarkan izin dengan backup. |
+| F0-09 | Medium | (dari Fase 0) surface DSH. | Closed (lihat F6-02) | Diteliti: Web/Desktop/headless; tanpa TUI; preset hanya Web/Desktop. |
 
 ---
 

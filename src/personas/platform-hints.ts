@@ -12,7 +12,7 @@ interface PlatformHints {
 }
 
 // OpenCode strings must stay byte-identical to v2.2.2 (see opencode-surface fixture).
-// claude-code / pi verified in Phase 0; dsh / mcp are best-effort until Phase 6.
+// claude-code / pi / dsh verified against the hosts' docs; mcp is generic.
 const HINTS: Record<Platform, PlatformHints> = {
   opencode: {
     student: {
@@ -49,12 +49,12 @@ const HINTS: Record<Platform, PlatformHints> = {
   },
   dsh: {
     student: {
-      teacher: 'mode **Teacher** (pilih agent preset "teacher")',
-      coach: 'mode **Coach** (pilih agent preset "coach")',
+      teacher: 'mode **Teacher** (buka sesi baru dan pilih preset "Teacher")',
+      coach: 'mode **Coach** (buka sesi baru dan pilih preset "Coach")',
     },
     prompt: {
-      teacher: 'select the "teacher" agent preset',
-      coach: 'select the "coach" agent preset',
+      teacher: 'start a new session and pick the "Teacher" preset',
+      coach: 'start a new session and pick the "Coach" preset',
     },
     questionTool: "Wherever these instructions or a tool result say to use the \"question\" tool, use this environment's interactive question tool if one exists; otherwise ask in plain text with numbered options and wait for the reply.",
   },
