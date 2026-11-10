@@ -124,7 +124,7 @@ describe("platform switch hints in tool output", () => {
   it("uses each platform's own switch instruction", async () => {
     const expected: Record<Platform, string> = {
       opencode: "`opencode --agent coach`",
-      "claude-code": "`claude --agent coach`",
+      "claude-code": "`claude --agent codingschool:coach`",
       pi: "`/coach`",
       dsh: 'agent preset "coach"',
       mcp: 'prompt "coach"',
@@ -160,7 +160,7 @@ describe("platform switch hints in tool output", () => {
   it("points back to Teacher with each platform's instruction", async () => {
     const expected: Record<Platform, string> = {
       opencode: "`opencode --agent teacher`",
-      "claude-code": "`claude --agent teacher`",
+      "claude-code": "`claude --agent codingschool:teacher`",
       pi: "`/teacher`",
       dsh: 'agent preset "teacher"',
       mcp: 'prompt "teacher"',

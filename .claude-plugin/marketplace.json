@@ -1,0 +1,17 @@
+{
+  "name": "codingskuy",
+  "owner": {
+    "name": "CodingSkuy"
+  },
+  "description": "CodingSkuy plugins for learning software engineering with AI mentors.",
+  "plugins": [
+    {
+      "name": "codingschool",
+      "description": "Teacher and Coach personas for learning software engineering (diagnosis-first teaching, claim-gated pair programming).",
+      "source": {
+        "source": "npm",
+        "package": "@codingskuy/coding-school"
+      }
+    }
+  ]
+}

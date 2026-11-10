@@ -24,7 +24,9 @@
     "dist/",
     "scripts/",
     "README.md",
-    "LICENSE.md"
+    "LICENSE.md",
+    ".claude-plugin/",
+    "claude-code/"
   ],
   "publishConfig": {
     "access": "public"
@@ -37,7 +39,8 @@
     "postinstall": "node scripts/postinstall.mjs",
     "setup": "node scripts/cli.mjs setup",
     "prepublishOnly": "bun run build",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "gen:claude-code": "bun scripts/gen-claude-code.ts"
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.0.0",

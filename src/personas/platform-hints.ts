@@ -27,12 +27,12 @@ const HINTS: Record<Platform, PlatformHints> = {
   },
   "claude-code": {
     student: {
-      teacher: "agent **Teacher** (keluar dari sesi ini, lalu jalankan `claude --agent teacher`)",
-      coach: "agent **Coach** (keluar dari sesi ini, lalu jalankan `claude --agent coach`)",
+      teacher: "agent **Teacher** (keluar dari sesi ini, lalu jalankan `claude --agent codingschool:teacher`)",
+      coach: "agent **Coach** (keluar dari sesi ini, lalu jalankan `claude --agent codingschool:coach`)",
     },
     prompt: {
-      teacher: "exit this session, then run `claude --agent teacher`",
-      coach: "exit this session, then run `claude --agent coach`",
+      teacher: "exit this session, then run `claude --agent codingschool:teacher`",
+      coach: "exit this session, then run `claude --agent codingschool:coach`",
     },
     questionTool: "Wherever these instructions or a tool result say to use the \"question\" tool, use the AskUserQuestion tool.",
   },

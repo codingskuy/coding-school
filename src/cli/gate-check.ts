@@ -7,7 +7,7 @@ import type { PersonaId } from "../personas/types"
 
 // Host-neutral claim-gate entrypoint for pre-tool hooks.
 //
-//   coding-school gate-check [--project-dir <dir>] [--format exit-code|json]
+//   coding-school gate-check [--project-dir <dir>] [--format exit-code|json] [--scope all|persona]
 //
 // Reads the hook payload (JSON) from stdin. Claude Code shape:
 //   { cwd, tool_name, tool_input, agent_type?, ... }
@@ -16,6 +16,11 @@ import type { PersonaId } from "../personas/types"
 //   on stderr. Understood by Claude Code, Codewhale and DeepSeek Harness's
 //   Claude Code hook bridge.
 // --format json: always exit 0, prints { "allow": boolean, "reason": string }.
+//
+// --scope all (default): gate every write.
+// --scope persona: gate only sessions running a CodingSchool persona
+//   (agent_type teacher / coach). Used by the Claude Code plugin, whose hooks
+//   fire in every session, so it never blocks writes outside CodingSchool.
 
 // File-writing tool names across hosts (Claude Code, OpenCode, Pi).
 const WRITE_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit", "write", "edit", "strreplace"])
@@ -44,10 +49,11 @@ function flag(argv: string[], name: string): string | undefined {
   return i >= 0 ? argv[i + 1] : undefined
 }
 
-// Claude Code reports plugin agents as "teacher" or "<plugin>:teacher".
+// Claude Code reports plugin agents as "codingschool:teacher", and agents
+// copied into .claude/agents as plain "teacher".
 function personaFromAgentType(agentType: unknown): PersonaId | undefined {
   if (typeof agentType !== "string") return undefined
-  const name = agentType.split(":").pop()
+  const name = agentType.startsWith("codingschool:") ? agentType.slice("codingschool:".length) : agentType
   return name === "teacher" || name === "coach" ? name : undefined
 }
 
@@ -68,6 +74,9 @@ export function evaluate(input: GateCheckInput): WriteDecision {
   }
 
   const persona = personaFromAgentType(payload.agent_type)
+  if (!persona && flag(input.argv, "--scope") === "persona") {
+    return { allow: true, reason: "Not a CodingSchool persona session." }
+  }
   if (persona && PERSONAS[persona].writePolicy === "never") {
     return { allow: false, reason: `CodingSchool: the ${persona} persona never writes files.` }
   }
@@ -85,6 +94,10 @@ export function runGateCheck(input: GateCheckInput): GateCheckResult {
   const format = flag(input.argv, "--format") ?? "exit-code"
   if (format !== "exit-code" && format !== "json") {
     return { exitCode: 2, stdout: "", stderr: `CodingSchool: unknown --format "${format}" (use exit-code or json).\n` }
+  }
+  const scope = flag(input.argv, "--scope") ?? "all"
+  if (scope !== "all" && scope !== "persona") {
+    return { exitCode: 2, stdout: "", stderr: `CodingSchool: unknown --scope "${scope}" (use all or persona).\n` }
   }
   const decision = evaluate(input)
   if (format === "json") {

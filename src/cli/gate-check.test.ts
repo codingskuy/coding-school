@@ -74,6 +74,11 @@ describe("gate-check (exit-code format)", () => {
     expect(run({ cwd: tmpDir, tool_name: "Write", agent_type: "codingschool:coach" }).exitCode).toBe(0)
   })
 
+  it("ignores agents from other plugins that happen to be named teacher", () => {
+    openClaimIn(tmpDir)
+    expect(run({ cwd: tmpDir, tool_name: "Write", agent_type: "otherplugin:teacher" }).exitCode).toBe(0)
+  })
+
   it("fails closed on invalid stdin", () => {
     for (const bad of ["{not json", "[1,2]", "null", "42"]) {
       const r = run(bad)
@@ -91,6 +96,26 @@ describe("gate-check (exit-code format)", () => {
     const r = run({ cwd: tmpDir }, { argv: ["--format", "xml"] })
     expect(r.exitCode).toBe(2)
     expect(r.stderr).toContain("--format")
+  })
+})
+
+describe("gate-check --scope persona", () => {
+  const scoped = (payload: unknown) => run(payload, { argv: ["--scope", "persona"] })
+
+  it("never blocks sessions that are not running a CodingSchool persona", () => {
+    expect(scoped({ cwd: tmpDir, tool_name: "Write" }).exitCode).toBe(0)
+    expect(scoped({ cwd: tmpDir, tool_name: "Write", agent_type: "general-purpose" }).exitCode).toBe(0)
+  })
+
+  it("still gates coach and always blocks teacher", () => {
+    expect(scoped({ cwd: tmpDir, tool_name: "Write", agent_type: "codingschool:coach" }).exitCode).toBe(2)
+    openClaimIn(tmpDir)
+    expect(scoped({ cwd: tmpDir, tool_name: "Write", agent_type: "codingschool:coach" }).exitCode).toBe(0)
+    expect(scoped({ cwd: tmpDir, tool_name: "Write", agent_type: "codingschool:teacher" }).exitCode).toBe(2)
+  })
+
+  it("rejects an unknown --scope", () => {
+    expect(run({ cwd: tmpDir }, { argv: ["--scope", "nope"] }).exitCode).toBe(2)
   })
 })
 

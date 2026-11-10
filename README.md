@@ -104,6 +104,31 @@ Then restart OpenCode and switch agent in the dropdown.
 
 > Requires **OpenCode v0.7+** (Plugin V2 API).
 
+### Claude Code
+
+CodingSchool ships as a Claude Code plugin: the `cs_*` tools run as a bundled MCP server, Teacher and Coach are agents, and a `PreToolUse` hook enforces the comprehension claim gate.
+
+```
+/plugin marketplace add codingskuy/coding-school
+/plugin install codingschool@codingskuy
+```
+
+Then start a session with a persona:
+
+```bash
+claude --agent codingschool:teacher   # learn
+claude --agent codingschool:coach     # build the project
+```
+
+Claude Code can't switch the main agent mid-session, so the Teacher → Coach handoff means exiting and starting `claude --agent codingschool:coach`. Your progress lives in `.codingschool/`, so nothing is lost.
+
+- Teacher has no file-writing tools at all (no Write, Edit or Bash).
+- Coach can write only while a claim is open (`cs_claim_open`); the hook blocks Write/Edit otherwise.
+- The hook only acts in Teacher/Coach sessions — your other Claude Code sessions are not affected.
+- Known limitation: Coach can still change files through Bash. Claude Code asks for your permission before a shell command writes files in the default permission mode.
+
+Local development: `bun run build && claude --plugin-dir . --agent codingschool:teacher`.
+
 ---
 
 ## 🤖 The Agents

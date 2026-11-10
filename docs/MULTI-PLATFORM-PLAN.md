@@ -1,6 +1,6 @@
 # Rencana Implementasi: CodingSchool Multi-Platform
 
-> Status: **Fase 0–3 selesai , Fase 4 sedang berjalan** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
+> Status: **Fase 0–4 selesai, Fase 5 sedang berjalan** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
 > Target rilis: **v3.0.0**
 
 ## 1. Tujuan
@@ -343,43 +343,58 @@ scripts/
 
 ### Fase 4 — Plugin Claude Code
 
+> **Status: SELESAI (2026-11-10)**.
+
 **Tujuan:** pengalaman Teacher/Coach di Claude Code setara dengan OpenCode.
 
-**Tugas:**
-- [ ] 4.1 `plugins/claude-code/.claude-plugin/plugin.json` (nama, versi tersinkron dengan `package.json`).
 *Diubah oleh Fase 0: nama tool memakai prefix plugin, deny lewat exit 2, perpindahan agent lewat sesi baru.*
 
-- [ ] 4.2 `.mcp.json` → server `cs` menjalankan `node ${CLAUDE_PLUGIN_ROOT}/dist/mcp.js` (bukan `npx`, agar cepat dan versinya sama dengan plugin). Nama tool akhir: `mcp__plugin_codingschool_cs__cs_*`.
-- [ ] 4.3 `agents/teacher.md` & `agents/coach.md` digenerate dari `renderPrompt(…, "claude-code")` oleh script build (bukan ditulis tangan, agar tidak drift).
-  - Teacher: `tools: Read, Glob, Grep, mcp__plugin_codingschool_cs__*` (**tanpa** `Write`, `Edit`, `NotebookEdit`).
-  - Coach: tool di atas + `Write`, `Edit`, `NotebookEdit`, `Bash`.
-- [ ] 4.4 `hooks/hooks.json`: `PreToolUse` matcher `Write|Edit|MultiEdit|NotebookEdit` → `node "${CLAUDE_PLUGIN_ROOT}/dist/gate-check.js"` (deny = exit 2 + stderr).
-- [ ] 4.5 Hint perpindahan agent: "keluar, lalu jalankan `claude --agent coach`" (F0-02). Default agent plugin lewat `settings.json` → `{"agent": "teacher"}`.
-- [ ] 4.6 Dokumentasi instalasi di README (marketplace/`/plugin install` atau path lokal).
+**Tugas:**
+- [x] 4.1 **Diubah dari rencana:** manifest ada di **root paket** (`.claude-plugin/plugin.json`), bukan `plugins/claude-code/`. Alasannya, plugin membutuhkan `dist/` (bundle MCP dan gate-check), padahal `dist/` tidak masuk git. Jadi plugin dipasang dari paket npm: `.claude-plugin/marketplace.json` memakai source `npm` (`@codingskuy/coding-school`). `files` di `package.json` ditambah `.claude-plugin/` dan `claude-code/`.
+- [x] 4.2 Server MCP `cs` dideklarasikan langsung di manifest: `node ${CLAUDE_PLUGIN_ROOT}/dist/mcp.js --platform claude-code`. Nama tool: `mcp__plugin_codingschool_cs__cs_*`.
+- [x] 4.3 `claude-code/agents/teacher.md` & `coach.md` digenerate dari persona (`src/claude-code/plugin.ts`, `bun run gen:claude-code`); test anti-drift memastikan file yang di-commit sama dengan hasil generator.
+  - Teacher: `Read, Glob, Grep, AskUserQuestion, WebSearch, WebFetch, TodoWrite, mcp__plugin_codingschool_cs__*` (tanpa `Write`, `Edit`, `NotebookEdit`, `Bash`).
+  - Coach: semua di atas + `Write, Edit, NotebookEdit, Bash`.
+- [x] 4.4 Hook `PreToolUse` (`Write|Edit|MultiEdit|NotebookEdit`) → `node "${CLAUDE_PLUGIN_ROOT}/dist/gate-check.js" --scope persona`. Opsi baru `--scope persona` di gate-check: hook plugin aktif di **semua** sesi Claude Code, jadi gate hanya bekerja di sesi Teacher/Coach (dideteksi dari `agent_type`) dan tidak pernah memblokir project lain.
+- [x] 4.5 Hint perpindahan: "keluar, lalu jalankan `claude --agent codingschool:coach`". **Diubah dari rencana:** default agent lewat `settings.json` plugin **tidak dipakai**, karena akan menjadikan Teacher agent utama di semua sesi Claude Code pengguna.
+- [x] 4.6 README: bagian "Claude Code" (instal via marketplace, cara memulai persona, batasan Bash, pengembangan lokal).
 
 #### Gerbang Fase 4
 
-**Validasi**
-- [ ] Alur lengkap end-to-end di Claude Code: onboarding → diagnosis → roadmap → quiz → capstone → Coach → claim → tulis kode → submit → kembali ke Teacher.
-- [ ] Teacher tidak bisa menulis file (dicoba langsung meminta "buatkan file x").
-- [ ] Coach tanpa claim terbuka → `Write` ditolak oleh hook; dengan claim → diizinkan.
-- [ ] State `.codingschool/` yang dibuat di OpenCode bisa dilanjutkan di Claude Code (dan sebaliknya).
+**Validasi** (semua lewat `claude -p --plugin-dir <repo> --agent …`, model haiku/sonnet)
+- [x] **Alur lintas platform end-to-end:** roadmap + `cs_prepare_capstone` lewat adapter OpenCode → **Coach di Claude Code**: `cs_timeline_init`/`add` → `cs_claim_open` (konteks "CAPSTONE PROJECT READY from Teacher's roadmap" terbaca) → `Write calc.py` → `cs_claim_submit pass` → `cs_announce_project_complete` → **Teacher di Claude Code**: `cs_resume_session` → `cs_update_progress` → roadmap `- [x] Kalkulator CLI`, `context.json` `currentPhase: done`.
+- [x] Teacher tidak bisa menulis file: diminta membuat `notes.txt` → menolak; daftar tool-nya tidak berisi satu pun tool penulis file. Teacher tetap bisa memanggil tool `cs_*`.
+- [x] Coach tanpa claim → `Write` ditolak hook ("no open comprehension claim. Call cs_claim_open…"); dengan claim → file dibuat.
+- [x] Sesi Claude Code biasa (tanpa persona) di folder yang sama → `Write` **tidak** diblokir.
+- [x] State `.codingschool/` dari OpenCode dilanjutkan di Claude Code (alur di atas). Arah sebaliknya memakai file dan modul yang sama (adapter OpenCode dites di Fase 1).
+- [ ] Onboarding → diagnosis → quiz tidak diuji langsung di Claude Code; tool-tool itu sama persis lewat MCP (test kesetaraan Fase 3) → F4-04.
 
 **Audit**
-- [ ] **Celah Bash:** Coach/Teacher masih bisa menulis file lewat `Bash` (`echo > file`). Putuskan: (a) tambah matcher `Bash` dengan heuristik redirect/`tee`/`sed -i`, atau (b) terima sebagai batasan yang terdokumentasi. Celah yang sama juga ada di OpenCode v2.2.2 → catat di log issue.
-- [ ] Hook tidak bergantung pada `npx` yang lambat untuk setiap write (pertimbangkan path absolut ke `dist/gate-check.js` via `${CLAUDE_PLUGIN_ROOT}`).
-- [ ] Tidak ada izin berlebihan di frontmatter agent.
+- [x] **Celah Bash (F0-05) — diputuskan opsi (b):** Teacher tidak punya `Bash` sama sekali. Coach memiliki `Bash` (dibutuhkan untuk menjalankan test/build proyek); di mode izin default Claude Code, perintah shell yang menulis file tetap meminta persetujuan pengguna (terbukti di Fase 0). Didokumentasikan di README sebagai batasan yang diketahui. Heuristik pada matcher `Bash` ditolak karena mudah diakali dan berisiko memblokir perintah sah.
+- [x] Hook memakai `node "${CLAUDE_PLUGIN_ROOT}/dist/gate-check.js"` langsung (tanpa `npx`), < 300 ms (Fase 2).
+- [x] Izin agent minimal: Teacher hanya tool baca + `cs_*`; tidak ada `permissionMode`.
+- [x] `agent_type` diverifikasi langsung: sesi `--agent teacher` → `"codingschool:teacher"`; sesi biasa → tidak ada → F2-02 ditutup. Agent dari plugin lain yang kebetulan bernama `teacher` (`otherplugin:teacher`) tidak dianggap persona CodingSchool.
+- [x] `claude plugin validate .` → **✔ Validation passed** (hanya peringatan: belum ada ikon).
 
 **Test**
-- [ ] Test generator: `agents/*.md` hasil build cocok dengan `renderPrompt` → `___`
-- [ ] Test `hooks.json` valid JSON & matcher benar → `___`
-- [ ] Uji manual E2E (checklist validasi) → `___`
+- [x] Test generator: file agent + manifest yang di-commit identik dengan hasil generator; versi manifest = `package.json` → **lulus**
+- [x] Test wiring manifest: argumen server MCP, matcher hook, perintah hook `--scope persona`, file agent ada, marketplace memakai source npm, `files` npm → **lulus**
+- [x] Test akses tool: Teacher tanpa tool penulis (termasuk `Bash`), Coach dengan tool penulis → **lulus**
+- [x] Test `gate-check --scope persona` (5 test baru) → **lulus**
+- [x] `bun test` total → **410 pass / 0 fail** (+13); `bun run typecheck` → **lulus**
+- [x] Uji manual E2E (checklist validasi) → **lulus**
 
 **Log Issue**
 
 | ID | Severity | Deskripsi | Status | Resolusi |
 |---|---|---|---|---|
-| F4-01 | | | | |
+| F4-01 | **High** | Hook plugin Claude Code aktif di **semua** sesi pengguna. Tanpa pembatasan, gate akan memblokir `Write`/`Edit` di setiap project lain yang tidak punya claim CodingSchool. | Closed | `gate-check --scope persona`: gate hanya aktif bila `agent_type` adalah persona CodingSchool. Diuji langsung (sesi biasa tidak diblokir) + test. |
+| F4-02 | Medium | Instalasi lewat marketplace (`/plugin install codingschool@codingskuy`) belum bisa diuji: butuh `marketplace.json` di branch utama GitHub dan paket v3.0.0 terbit di npm. | Open → Fase 7 | Sudah diuji lewat `--plugin-dir` dan `claude plugin validate`. Smoke test pasca-publish dijadwalkan di Gerbang Fase 7. |
+| F4-03 | Low | Plugin belum punya ikon (peringatan validator `ICON_MISSING`). | Open | Perlu aset PNG persegi 512–2048 px dari pemilik produk. |
+| F4-04 | Low | Bagian awal alur belajar (onboarding → diagnosis → quiz) belum dicoba langsung dengan model di Claude Code. | Accepted | Tool yang sama terbukti identik lewat MCP (Fase 3); alur akhir (capstone → Coach → kembali ke Teacher) sudah dicoba langsung. Disarankan dicoba sekali bersama F1-01 sebelum rilis. |
+| F4-05 | Low | Teks pindah agent semula `claude --agent coach`, sedangkan README memakai `codingschool:coach`. | Closed | Diseragamkan ke `claude --agent codingschool:<persona>` (nama yang pasti meski ada agent lain bernama sama). |
+| F0-05 | Medium | (dari Fase 0) celah tulis lewat shell. | Closed (accepted) | Opsi (b): batasan terdokumentasi; Teacher tanpa Bash. Lihat audit di atas. |
+| F2-02 | Low | (dari Fase 2) `agent_type` belum diverifikasi. | Closed | Terverifikasi langsung: `"codingschool:teacher"`. |
 
 ---
 
