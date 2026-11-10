@@ -1,6 +1,6 @@
 # Rencana Implementasi: CodingSchool Multi-Platform
 
-> Status: **Fase 0–6 selesai, Fase 7 sedang berjalan** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
+> Status: **Fase 0–7 selesai — v3.0.0 siap terbit (belum di-push/publish)** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
 > Target rilis: **v3.0.0**
 
 ## 1. Tujuan
@@ -508,32 +508,63 @@ scripts/
 
 ### Fase 7 — Rilis v3.0.0
 
+> **Status: SELESAI sampai tahap siap terbit (2026-11-10)**. Paket **belum** diterbitkan ke npm dan branch belum di-push; keduanya keputusan pemilik produk.
+
 **Tugas:**
-- [ ] 7.1 CI: matriks job `test`, `typecheck`, `build`, test kontrak MCP, validasi plugin Claude Code.
-- [ ] 7.2 `package.json`: `exports` baru (`./mcp`, `./pi`), `bin` tetap `coding-school`, `files` mencakup `plugins/`.
-- [ ] 7.3 `CHANGELOG.md` + panduan migrasi (pengguna OpenCode: tidak ada aksi yang diperlukan).
-- [ ] 7.4 Bump `2.2.2 → 3.0.0`, `npm publish --dry-run`, cek isi tarball.
+- [x] 7.1 CI (`.github/workflows/ci.yml`): ditambah Node 20, `bun run typecheck`, dan pengecekan bahwa file plugin Claude Code yang di-commit sama dengan hasil generator (`gen:claude-code` + `git diff --exit-code`). Test kontrak MCP, test plugin, dan test biner (`node dist/*.js`) sudah termasuk di `bun test`. `release.yml`: Node 18 → 20. **Diubah dari rencana:** `claude plugin validate` tidak dijalankan di CI karena butuh Claude Code CLI; validasinya dicakup test manifest + validasi manual.
+- [x] 7.2 `package.json`: versi 3.0.0, deskripsi & keywords multi-platform, `bin` tetap `coding-school` (path dinormalkan, F7-02), `files` = `dist/`, `scripts/cli.mjs`, `scripts/postinstall.mjs`, `.claude-plugin/`, `claude-code/`, README, LICENSE. **Diubah dari rencana:** tidak ada `exports` baru, karena `mcp`/`pi`/`gate-check` dipakai sebagai file/perintah (lewat `bin`, manifest `pi`, dan manifest plugin), bukan di-import.
+- [x] 7.3 `CHANGELOG.md` 3.0.0 (Added/Changed/Fixed/Migration/Known limitations); README: judul multi-platform, badge versi & jumlah test, "What's New in v3.0.0". Versi CLI kini dibaca dari `package.json` (sebelumnya ditulis manual "2.2.2").
+- [x] 7.4 Versi 2.2.2 → 3.0.0 (manifest plugin ikut digenerate ulang); `npm pack` + `npm publish --dry-run` → 111 file, 416,2 kB (2,0 MB terurai). Evaluasi `--minify` untuk `dist/mcp.js` (F3-04): 1.448 KB → 820 KB; **tidak diterapkan** agar stack trace di log tetap terbaca.
 
 #### Gerbang Fase 7
 
-**Validasi**
-- [ ] Install bersih dari tarball di tiga platform berhasil.
-- [ ] Pengguna OpenCode v2.2.2 bisa upgrade tanpa mengubah konfigurasi.
+**Validasi** — `npm i <tarball>` di folder kosong, lalu dari paket yang terpasang:
+- [x] **OpenCode:** `import "@codingskuy/coding-school"` → 27 tool, agent `teacher`, `coach`.
+- [x] **MCP:** `npx coding-school mcp` → server `codingschool 3.0.0`, 27 tool, prompts `teacher`, `coach`.
+- [x] **gate-check:** `npx coding-school gate-check` → exit 2 + pesan `cs_claim_open`.
+- [x] **Claude Code:** `claude plugin validate <paket terpasang>` → ✔; sesi `claude -p --plugin-dir <paket terpasang> --agent codingschool:coach` memanggil `cs_engineering_status` dan menolak menulis tanpa claim.
+- [x] **Pi:** paket terpasang lewat `packages` → `/teacher` aktif, tool bawaan hanya `read`, 27 tool `cs_*`.
+- [x] **DeepSeek Harness:** `npx coding-school setup --platform dsh --yes` → patch menunjuk ke `dist/mcp.js` di paket terpasang.
+- [x] **Upgrade pengguna OpenCode v2.2.2:** entri plugin, tool, prompt, dan izin identik (fixture Fase 1, tetap lulus di 3.0.0) → tidak ada perubahan konfigurasi.
 
 **Audit**
-- [ ] `npm pack --dry-run`: tidak ada file sensitif (`.env`, `PRD*.md`, `.codingschool/`, `graphify-out/`).
-- [ ] `npm audit` tanpa temuan High/Critical.
-- [ ] Semua issue *High* di Fase 0–6 berstatus *Closed*; issue *Medium/Low* yang ditunda tercatat di CHANGELOG sebagai known issue.
+- [x] Isi tarball: tidak ada `.env`, `PRD*.md`, `BRD.md`, `SRS.md`, `.codingschool/`, `graphify-out/`, fixture, atau file test. `scripts/gen-claude-code.ts` (alat dev) dikeluarkan dari paket.
+- [x] `bun audit --prod`: **4 temuan High, semuanya `toml@4.1.2`** lewat `@opencode-ai/plugin → effect → toml` (upstream, sudah ada di v2.2.2; perbaikan `toml@5.0.1` di luar range `effect`; tidak ikut ke bundle kita) → F7-01. Temuan lain hanya di devDependencies (`@opentui/*`, Pi, build tools), yang tidak ikut terpasang pada pengguna.
+- [x] Semua issue *High* di Fase 0–6 berstatus *Closed* (F3-01, F4-01, F5-01). Issue *Medium/Low* yang ditunda tercatat di CHANGELOG "Known limitations".
 
 **Test**
-- [ ] CI hijau di semua job → `___`
-- [ ] Smoke test pasca-publish (`npx @codingskuy/coding-school@3.0.0 mcp`) → `___`
+- [x] `bun test` → **440 pass / 0 fail**; `bun run typecheck` → **lulus**; `bun run build` (dari `dist` kosong) → **lulus**
+- [ ] CI GitHub → belum jalan (branch belum di-push) → F7-03
+- [ ] Smoke test pasca-publish (`npx @codingskuy/coding-school@3.0.0 mcp`, `/plugin install codingschool@codingskuy`) → menunggu publish (F4-02, F7-03)
 
 **Log Issue**
 
 | ID | Severity | Deskripsi | Status | Resolusi |
 |---|---|---|---|---|
-| F7-01 | | | | |
+| F7-01 | Medium | `toml@4.1.2` (4 advisory High) ikut terpasang lewat `@opencode-ai/plugin → effect`. Upstream; sudah ada di v2.2.2; kode CodingSchool tidak memanggil parser TOML. | Accepted (upstream) | Dicatat di CHANGELOG. Pantau rilis `@opencode-ai/plugin` / `effect` yang memakai `toml ≥ 5.0.1`. Terkait F3-05 (paket ini tetap wajib bagi pengguna non-OpenCode). |
+| F7-02 | Medium | `npm publish` (npm 11.20) menghapus entri `bin` karena path `./scripts/cli.mjs` dianggap tidak valid. Juga terjadi di v2.2.2, tapi registry saat itu menormalkannya. Tanpa `bin`, semua perintah `npx @codingskuy/coding-school …` gagal. | Closed | Dinormalkan menjadi `scripts/cli.mjs`; `npm publish --dry-run` tanpa peringatan. Catatan: `npm pkg fix --dry-run` ternyata tetap menulis `package.json`; perubahannya hanya path `bin` ini. |
+| F7-03 | Medium | Rilis belum dilakukan: branch `feat/multi-platform` belum di-push/merge, CI belum jalan, paket belum terbit, sehingga instalasi lewat marketplace Claude Code dan `pi install npm:…` belum bisa dicoba. | Open | Langkah pemilik produk: push → PR → CI hijau → merge → tag `v3.0.0` (workflow `release.yml` menerbitkan ke npm) → smoke test pasca-publish. |
+
+---
+
+## 4.1 Ringkasan Akhir
+
+**Hasil:** CodingSchool v3.0.0 siap terbit di branch `feat/multi-platform` (7 commit). 440 test lulus (baseline 354). Teacher dan Coach berjalan di OpenCode (identik dengan v2.2.2), Claude Code, Pi, DeepSeek Harness Web, dan host MCP lain.
+
+**Issue High yang ditemukan dan ditutup:** F3-01 (shell injection `publishToGitHub`, sudah ada sejak v2.2.2), F4-01 (hook Claude Code akan memblokir semua sesi pengguna), F5-01 (tool MCP hilang setelah Teacher → Coach di Pi).
+
+**Perlu tindakan pemilik produk sebelum/sesudah rilis:**
+
+| Issue | Tindakan |
+|---|---|
+| F1-01, F4-04 | Coba alur Teacher → Coach sekali di **OpenCode asli** dan alur awal (onboarding → diagnosis → quiz) di Claude Code. |
+| F5-02 | Coba alur Teacher → Coach dengan model sungguhan di **Pi**. |
+| F6-03 | Coba preset Teacher/Coach di **DeepSeek Harness Web** dengan API key DeepSeek. |
+| F7-03, F4-02 | Push, PR, merge, tag `v3.0.0`; lalu smoke test `/plugin install codingschool@codingskuy` dan `pi install npm:@codingskuy/coding-school`. |
+| F4-03 | Sediakan ikon plugin PNG persegi 512–2048 px. |
+| F6-02 | Putuskan apakah DSH **Desktop** perlu didukung (butuh paket bundle DSH dengan pin versi persis). |
+
+**Ditunda setelah v3.0.0:** F1-02 (pecah `registry.ts`), F1-09 (kode mati), F2-01 (gate per file claim), F3-05/F7-01 (`@opencode-ai/plugin` wajib), F5-03 (konfirmasi `bash` Coach di Pi), F6-05 (Codewhale).
 
 ---
 

@@ -1,5 +1,37 @@
 # Changelog
 
+## 3.0.0 - 2026-11-10
+
+CodingSchool runs on more agent hosts. Teacher and Coach are now platform-neutral *personas*; each host maps them to its own concept (agent, mode, preset, prompt). Plan and per-phase audit: `docs/MULTI-PLATFORM-PLAN.md`.
+
+### Added
+- MCP server: `coding-school mcp [--platform claude-code|pi|dsh|mcp]` serves all 27 `cs_*` tools plus `teacher`/`coach` MCP prompts (self-contained `dist/mcp.js`)
+- Claude Code plugin (`.claude-plugin/`): Teacher and Coach agents (`claude --agent codingschool:teacher`), bundled MCP server, `PreToolUse` claim-gate hook that only acts in persona sessions; marketplace `codingskuy` installs from npm
+- Pi package (`"pi"` manifest, `dist/pi.js`): `/teacher`, `/coach`, `/codingschool off`, `pi --codingschool <mode>`; Teacher loses `write`/`edit`/`bash`, Coach writes only with an open claim
+- DeepSeek Harness (best effort): `setup --platform dsh` writes Teacher/Coach agent presets for `dsh web --patch`
+- `coding-school gate-check [--format exit-code|json] [--scope all|persona] [--persona teacher|coach]` for host pre-tool hooks
+- `coding-school setup --platform opencode|claude-code|pi|dsh|mcp` and `--yes`
+- Per-host guidance for OpenCode's `question` tool (Claude Code: AskUserQuestion; Pi: numbered options)
+
+### Changed
+- `src/index.ts` is now a thin OpenCode adapter over `src/tools/registry.ts`, `src/personas/` and `src/gate/check.ts` (no behavior change, verified against a v2.2.2 golden fixture)
+- Single `zod@4.6.7` in the dev tree via `overrides` (drops the advisory-affected 4.1.8 copy from bundles)
+
+### Fixed
+- Security: `cs_publish_handbook` passed the model-provided repository name to a shell (`gh repo create …`); it is now validated and run without a shell
+- Security: `cs_init_learning_env` accepted folder names like `../outside`; only a single folder name is accepted now
+- `scripts/cli.mjs` used `mkdirSync` without importing it
+
+### Migration
+- OpenCode: no action needed — same plugin entry, same tools, prompts and permissions.
+- Other hosts: run `npx @codingskuy/coding-school setup --platform <host>`.
+
+### Known limitations
+- Claude Code can't switch the main agent mid-session: Teacher → Coach means a new `claude --agent codingschool:coach` session
+- Coach can still change files through shell commands (Claude Code asks first; Pi does not)
+- DeepSeek Harness presets work in DSH Web only; Desktop and headless have no presets yet
+- `@opencode-ai/plugin` (and its `effect → toml@4.1.2` dependency with upstream advisories) is still installed for non-OpenCode users
+
 ## 2.2.2 - 2026-08-19
 
 ### Added

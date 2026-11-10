@@ -7,7 +7,7 @@ import { createInterface } from "readline"
 import { homedir, platform } from "os"
 
 const PACKAGE_NAME = "@codingskuy/coding-school"
-const VERSION = "2.2.2"
+const VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version
 
 const BANNER = `
   ╔═══════════════════════════════════════════════════════════╗

@@ -1,6 +1,6 @@
 {
   "name": "codingschool",
-  "version": "2.2.2",
+  "version": "3.0.0",
   "description": "CodingSchool — Teacher and Coach personas for learning software engineering (diagnosis-first teaching, claim-gated pair programming).",
   "author": {
     "name": "CodingSkuy"

@@ -2,14 +2,14 @@
 
 # 🎓 CodingSchool
 
-### AI Engineering Mentor for OpenCode
+### AI Engineering Mentor for OpenCode, Claude Code, Pi & any MCP host
 
 **Two agents. One mission. Real understanding.**
 
-[![Version](https://img.shields.io/badge/version-2.2.2-blue.svg)](https://github.com/codingskuy/codingschool)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/codingskuy/codingschool)
 [![Installs](https://img.shields.io/badge/installs-1,000-brightgreen?logo=npm)](https://www.npmjs.com/package/@codingskuy/coding-school)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Tests](https://img.shields.io/badge/tests-356%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-440%20passing-brightgreen.svg)](#development)
 [![OpenCode](https://img.shields.io/badge/OpenCode-v0.7+-purple.svg)](https://opencode.ai)
 
 ---
@@ -21,11 +21,21 @@
 
 *Stop copying code you don't understand.* https://codingskuy.github.io/codingschool
 
-CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skills** — not dependency on AI autocomplete.
+CodingSchool is a dual-persona AI mentor (OpenCode plugin, Claude Code plugin, Pi package and MCP server) that builds **real engineering skills** — not dependency on AI autocomplete.
 
 </div>
 
 ---
+
+## ✨ What's New in v3.0.0
+
+**CodingSchool now runs beyond OpenCode.** Teacher and Coach are available in Claude Code (plugin), Pi (package with `/teacher` and `/coach` modes), DeepSeek Harness Web (agent presets) and any MCP host. See [Supported Platforms](#-supported-platforms).
+
+- `coding-school mcp` — all 27 `cs_*` tools as a self-contained MCP server
+- `coding-school gate-check` — the comprehension claim gate as a pre-tool hook for any host
+- `coding-school setup --platform claude-code|pi|dsh|mcp`
+- Security: hardened `cs_publish_handbook` (no shell) and `cs_init_learning_env` (no path traversal)
+- OpenCode users: nothing to change — behavior is identical to v2.2.2
 
 ## ✨ What's New in v2.2.2
 
