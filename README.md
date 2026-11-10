@@ -129,6 +129,29 @@ Claude Code can't switch the main agent mid-session, so the Teacher → Coach ha
 
 Local development: `bun run build && claude --plugin-dir . --agent codingschool:teacher`.
 
+### Pi
+
+CodingSchool is also a Pi package. Pi calls personas *modes*, and you can switch mid-session.
+
+```bash
+pi install npm:@codingskuy/coding-school
+```
+
+Then, inside Pi:
+
+- `/teacher` — learn with Teacher
+- `/coach` — build the project with Coach
+- `/codingschool off` — back to plain Pi
+
+Or start directly in a mode: `pi --codingschool teacher`.
+
+- Nothing changes until you pick a mode, so the package never affects your other Pi sessions.
+- The `cs_*` tools come from the bundled MCP server (Pi's built-in MCP support).
+- Teacher mode removes `write`, `edit` and `bash`. Coach can `write`/`edit` only while a claim is open.
+- Known limitation: Coach's `bash` is not gated, and Pi does not ask before shell commands. Ask Coach to use `write`/`edit` for code changes.
+
+Pi has no interactive question tool, so Teacher and Coach ask with numbered options in plain text.
+
 ---
 
 ## 🤖 The Agents

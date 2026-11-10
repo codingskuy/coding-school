@@ -1,6 +1,6 @@
 # Rencana Implementasi: CodingSchool Multi-Platform
 
-> Status: **Fase 0–4 selesai, Fase 5 sedang berjalan** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
+> Status: **Fase 0–5 selesai, Fase 6 sedang berjalan** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
 > Target rilis: **v3.0.0**
 
 ## 1. Tujuan
@@ -400,37 +400,47 @@ scripts/
 
 ### Fase 5 — Adapter Pi Agent
 
+> **Status: SELESAI (2026-11-10)**.
+
 **Tujuan:** tool `cs_*` lewat server MCP (Pi punya MCP bawaan), ditambah extension kecil untuk persona dan claim gate.
 
 *Diubah oleh Fase 0: tidak perlu memetakan 27 tool ke `registerTool`; cukup `pi.registerMcpServer()`.*
 
 **Tugas:**
-- [ ] 5.1 `adapters/pi/extension.ts` (target `@earendil-works/pi-coding-agent` ≥ 1.0): daftarkan server MCP lewat `pi.registerMcpServer()` yang menunjuk ke `dist/mcp.js`.
-- [ ] 5.2 Persona: `pi.registerCommand("teacher")` / `("coach")` + `before_agent_start` → `{ systemPrompt }` dari `renderPrompt(…, "pi")`; mode Teacher memakai `pi.setActiveTools` tanpa `write`/`edit`. Mode disimpan dengan `pi.appendEntry()`.
-- [ ] 5.3 `pi.on("tool_call")`: blok `write`/`edit` bila `decideWrite` → deny (mode Teacher selalu deny).
-- [ ] 5.4 Paket: `package.json` → `"pi": { "extensions": ["./dist/pi.js"] }` agar bisa dipasang via `packages` (`npm:@codingskuy/coding-school`) + dokumentasi.
+- [x] 5.1 `src/pi/extension.ts` (`createPiExtension`), entry `src/pi.ts` → `dist/pi.js` (69,5 KB). Server MCP didaftarkan lewat `pi.registerMcpServer("codingschool", { command: node, args: [dist/mcp.js, "--platform", "pi"], exposure: "direct" })`. `exposure: "direct"` dipakai karena prompt memanggil tool `cs_*` dengan namanya; default Pi (`codemode`) menyembunyikannya di balik skrip.
+- [x] 5.2 Persona = **mode** (§1.1): `/teacher`, `/coach`, `/codingschool off` (dan `/codingschool` untuk status), plus flag `pi --codingschool teacher|coach`. Prompt dimasukkan sebagai section `codingschool` di `systemPromptOptions.sections` (cara yang dianjurkan dokumen Pi, bukan mengganti seluruh `systemPrompt`). Mode disimpan lewat `pi.appendEntry` dan dipulihkan di `session_start`.
+- [x] 5.3 `tool_call`: mode Teacher memblok `write`, `edit`, `bash`, `powershell` (juga dicabut dari tool aktif lewat `setActiveTools`); mode Coach memblok `write`/`edit` bila `decideWrite` menolak.
+- [x] 5.4 `package.json` → `"pi": { "extensions": ["./dist/pi.js"] }`; README bagian "Pi" (`pi install npm:@codingskuy/coding-school`).
+- [x] Tambahan: **tidak aktif sebelum mode dipilih.** Server MCP baru didaftarkan saat `/teacher`/`/coach` dan dilepas saat `off`, sehingga paket yang dipasang global tidak mengubah sesi Pi lain dan tidak menambah 27 tool ke setiap sesi.
+- [x] Tambahan: `@earendil-works/pi-coding-agent@1.5.1` sebagai devDependency **hanya untuk tipe** (import `type`), sehingga extension di-typecheck terhadap API Pi asli; build memakai `--external '@earendil-works/*'`.
 
 #### Gerbang Fase 5
 
-**Validasi**
-- [ ] Semua 27 tool terpanggil di Pi.
-- [ ] Mode Teacher tidak bisa menulis file; mode Coach hanya saat claim terbuka.
-- [ ] State lintas platform tetap kompatibel.
+**Validasi** (Pi 1.5.1 asli, mode RPC, tanpa model — perintah extension tidak butuh LLM)
+- [x] Extension termuat lewat `-e dist/pi.js` **dan** lewat `packages` di `settings.json` (manifest `"pi"` di `package.json`).
+- [x] Probe tool aktif per mode: Teacher → bawaan hanya `read` + 27 `mcp__codingschool__cs_*`; Coach → `read, bash, edit, write` + 27 tool; kembali ke Teacher → `read` + 27; `off` → `read, bash, edit, write`, 0 tool cs, 0 server.
+- [x] Mode tersimpan sebagai entry `codingschool-mode` di sesi (terlihat lewat RPC `get_entries`).
+- [x] State lintas platform: server MCP dan `decideWrite` sama dengan Claude Code, membaca `.codingschool/` di cwd.
+- [ ] Alur Teacher → Coach dengan model sungguhan di Pi **belum** diuji: tidak ada API key model di mesin ini → F5-02.
 
 **Audit**
-- [ ] Extension tidak meng-import adapter lain.
-- [ ] Nama tool penulis file di Pi sudah lengkap tercakup oleh blok.
+- [x] Extension hanya meng-import modul inti (`gate`, `personas`) dan tipe Pi; tidak meng-import adapter lain. Bundle `dist/pi.js` tidak berisi `@earendil-works` (test).
+- [x] Tool penulis bawaan Pi menurut `docs/cli.md`: `write`, `edit`, `bash`, `powershell` — semuanya tercakup untuk Teacher. Panggilan bersarang dari `codemode` tetap memicu `tool_call` dengan nama tool aslinya, jadi tetap terblok.
+- [x] **Bug ditemukan saat probe di Pi asli dan diperbaiki** (F5-01).
+- [x] Pi tidak punya tool pertanyaan interaktif → catatan "question tool" untuk platform `pi` (Fase 3) meminta opsi bernomor dalam teks.
 
 **Test**
-- [ ] Unit test pemetaan registry → format tool Pi → `___`
-- [ ] Uji manual alur Teacher → Coach di Pi → `___`
-- [ ] `bun test` total → `___ pass / ___ fail`
+- [x] Unit test dengan `ExtensionAPI` tiruan (13 test): tidak aktif secara default, prompt + server + pencabutan tool di Teacher, blok Teacher meski ada claim, gate Coach, pemulihan tool Teacher → Coach, `off`, pemulihan mode dari sesi, flag `--codingschool` (valid & tidak valid), manifest paket, bundle tanpa paket Pi → **lulus**
+- [x] Uji di Pi asli (RPC + extension probe) → **lulus**
+- [x] `bun test` total → **422 pass / 0 fail** (+12); `bun run typecheck` (terhadap tipe Pi asli) → **lulus**; `bun run build` → **lulus**
 
 **Log Issue**
 
 | ID | Severity | Deskripsi | Status | Resolusi |
 |---|---|---|---|---|
-| F5-01 | | | | |
+| F5-01 | **High** | Versi pertama memulihkan *snapshot* tool aktif saat keluar dari Teacher. Snapshot diambil sebelum server MCP terdaftar, sehingga setelah `/teacher` → `/coach` tool MCP (via `codemode`) hilang dan Coach tidak bisa memanggil `cs_*`. Ditemukan lewat probe di Pi asli. | Closed | Hanya tool yang dicabut Teacher yang dikembalikan; server MCP didaftarkan sebelum penyaringan; `exposure: "direct"`. Diverifikasi ulang di Pi asli + test regresi. |
+| F5-02 | Medium | Alur percakapan Teacher → Coach dengan model sungguhan belum diuji di Pi karena tidak ada API key di mesin dev. | Open → Fase 7 | Mekanisme (perintah, tool aktif, server MCP, blok) sudah diuji di Pi asli tanpa model; isi tool sama dengan Claude Code yang sudah diuji dengan model. Perlu dicoba sekali oleh pemilik produk sebelum rilis. |
+| F5-03 | Medium | `bash` di mode Coach tidak di-gate, dan Pi tidak meminta persetujuan sebelum menjalankan perintah shell. Celah tulis lewat shell (F0-05) lebih terbuka di Pi daripada di Claude Code. | Accepted | Didokumentasikan di README. Coach butuh `bash` untuk test/build. Opsi lanjutan setelah v3.0.0: konfirmasi `ctx.ui.confirm` untuk `bash` saat tidak ada claim terbuka. |
 
 ---
 
