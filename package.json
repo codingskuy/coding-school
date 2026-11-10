@@ -30,7 +30,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "bun build src/index.ts src/tui.ts --outdir dist --external @opencode-ai/plugin --external @opentui/solid --target node && tsc --emitDeclarationOnly --outDir dist",
+    "build": "bun build src/index.ts src/tui.ts src/gate-check.ts --outdir dist --external @opencode-ai/plugin --external @opentui/solid --target node && tsc --emitDeclarationOnly --outDir dist",
     "build:quick": "bun build src/index.ts --outdir dist --external @opencode-ai/plugin --target node",
     "test": "bun test",
     "typecheck": "tsc --noEmit",

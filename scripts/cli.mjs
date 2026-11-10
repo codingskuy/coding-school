@@ -266,6 +266,11 @@ async function main() {
     case "setup":
       await runSetup()
       break
+    case "gate-check":
+      // Called by host pre-tool hooks; keep argv as if dist/gate-check.js ran directly.
+      process.argv.splice(2, 1)
+      await import(new URL("../dist/gate-check.js", import.meta.url).href)
+      break
     case "--help":
     case "help":
       console.log(`
@@ -273,6 +278,9 @@ async function main() {
     npx @codingskuy/coding-school setup          Interactive setup (default: global scope)
     npx @codingskuy/coding-school setup --project Register only in the current project
     npx @codingskuy/coding-school setup --global  Force global scope
+    npx @codingskuy/coding-school gate-check      Claim-gate check for pre-tool hooks
+                                                  (reads hook JSON on stdin; exit 0 allow, 2 deny)
+        [--project-dir <dir>] [--format exit-code|json]
     npx @codingskuy/coding-school help            Show this help
       `)
       break

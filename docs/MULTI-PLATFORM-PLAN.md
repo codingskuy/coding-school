@@ -1,6 +1,6 @@
 # Rencana Implementasi: CodingSchool Multi-Platform
 
-> Status: **Fase 0–1 selesai (belum di-commit), Fase 2 belum dimulai** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
+> Status: **Fase 0–2 selesai , Fase 3 sedang berjalan** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
 > Target rilis: **v3.0.0**
 
 ## 1. Tujuan
@@ -181,7 +181,7 @@ scripts/
 
 ### Fase 1 — Ekstraksi Tool Registry & Prompt (refactor tanpa perubahan perilaku)
 
-> **Status: SELESAI (2026-11-10)** — belum di-commit. Satu validasi (uji manual di OpenCode asli) menunggu pemilik produk, lihat F1-01.
+> **Status: SELESAI (2026-11-10)** — commit `3a200ab` (branch `feat/multi-platform`). Satu validasi (uji manual di OpenCode asli) menunggu pemilik produk, lihat F1-01.
 
 **Tujuan:** memisahkan definisi tool dan prompt dari API OpenCode.
 
@@ -240,37 +240,48 @@ scripts/
 
 ### Fase 2 — CLI Platform-Neutral (`gate-check`, `mcp`)
 
+> **Status: SELESAI (2026-11-10)**.
+
 **Tujuan:** menyediakan entrypoint CLI yang bisa dipanggil hook platform mana pun.
 
 **Tugas:**
-- [ ] 2.1 Tambah build target `src/cli/gate-check.ts` → `dist/gate-check.js`.
-- [ ] 2.2 `coding-school gate-check`: baca JSON hook dari stdin (format Claude Code: `tool_name`, `tool_input`, `cwd`), panggil `decideWrite(cwd)`, tulis keputusan deny dalam format yang diterima Claude Code; exit 0 bila allow.
-- [ ] 2.3 Opsi `--format generic` (exit code 0/2 + pesan stderr) untuk harness lain.
-- [ ] 2.4 Resolusi `projectDir`: `--project-dir` > env `CODINGSCHOOL_PROJECT_DIR` > `cwd` dari stdin > `process.cwd()`.
-- [ ] 2.5 Daftarkan subcommand di `scripts/cli.mjs` (`gate-check`, `mcp`) dan update `help`.
+- [x] 2.1 Logika di `src/cli/gate-check.ts` (fungsi murni `runGateCheck`, mudah dites); entry build `src/gate-check.ts` → `dist/gate-check.js` (41,71 KB). Script `build` di `package.json` diperbarui.
+- [x] 2.2 `coding-school gate-check` membaca JSON hook dari stdin (`cwd`, `tool_name`, `agent_type`), lalu memanggil `decideWrite`. Deny = exit 2 + alasan di stderr (format yang terbukti jalan di Claude Code pada Fase 0).
+- [x] 2.3 **Diubah dari rencana:** opsi `--format generic` diganti `--format exit-code` (default, untuk Claude Code / Codewhale / jembatan hook DSH) dan `--format json` (selalu exit 0, mencetak `{ allow, reason }`) untuk harness yang membaca keputusan dari stdout.
+- [x] 2.4 Resolusi `projectDir`: `--project-dir` > env `CODINGSCHOOL_PROJECT_DIR` > `cwd` dari stdin > `process.cwd()`, dinormalisasi dengan `path.resolve`.
+- [x] 2.5 Subcommand `gate-check` didaftarkan di `scripts/cli.mjs` + teks `help`. **Diubah dari rencana:** subcommand `mcp` dipindah ke Fase 3 (bersama server MCP-nya).
+- [x] Tambahan (sesuai §1.1): bila payload membawa `agent_type` persona dengan `writePolicy: never` (`teacher` atau `codingschool:teacher`), penulisan **selalu ditolak** meski ada claim terbuka.
+- [x] Tambahan: tool yang bukan penulis file (`Read`, tool MCP, dll.) langsung diizinkan, jadi hook aman meski matcher-nya terlalu luas.
 
 #### Gerbang Fase 2
 
 **Validasi**
-- [ ] Tanpa claim terbuka → deny dengan pesan yang menyuruh agent memanggil `cs_claim_open`.
-- [ ] Dengan claim terbuka → allow.
-- [ ] Folder `.codingschool/` tidak ada → deny (fail-closed), bukan crash.
+- [x] Tanpa claim terbuka → exit 2, pesan menyuruh agent memanggil `cs_claim_open` (test + uji langsung).
+- [x] Dengan claim terbuka → exit 0 (test + uji langsung).
+- [x] Folder `.codingschool/` tidak ada → deny tanpa crash (test).
+- [x] **Uji langsung di Claude Code** (`claude -p`, hook `PreToolUse` → `node scripts/cli.mjs gate-check`): tanpa claim, `Write` ditolak dan model menerima pesan `cs_claim_open`; dengan claim terbuka, file berhasil dibuat.
 
 **Audit**
-- [ ] Input stdin divalidasi; JSON rusak → deny + pesan jelas (fail-closed).
-- [ ] Tidak ada path traversal: `projectDir` dinormalisasi, hanya membaca di bawah `.codingschool/claims/`.
-- [ ] Waktu eksekusi `gate-check` < 300 ms (dipanggil setiap write).
+- [x] Stdin divalidasi: JSON rusak, array, `null`, atau angka → deny dengan pesan "invalid hook input" (fail-closed). Stdin kosong diperlakukan sebagai payload kosong (pakai cwd proses), bukan error.
+- [x] Path: `projectDir` dinormalisasi; yang dibaca hanya `<projectDir>/.codingschool/claims/*.json` lewat `hasOpenClaim` yang sudah ada. `cwd` berasal dari host (input tepercaya), bukan dari model.
+- [x] Waktu eksekusi: 0,09–0,28 s lewat `node dist/gate-check.js`, 0,10–0,14 s lewat `cli.mjs` (5 dan 3 percobaan) → **< 300 ms** ✅. Panggilan pertama (cold start) yang paling lambat.
+- [x] Bundle `dist/gate-check.js` tidak berisi `@opencode-ai`/`@opentui` dan tidak memanggil `console.*` (stdout bersih).
+- [x] Tidak ada perubahan pada modul inti maupun adapter OpenCode.
 
 **Test**
-- [ ] Unit test `decideWrite` (open / tidak ada / closed / JSON rusak) → `___`
-- [ ] Integration test: spawn `node dist/gate-check.js` dengan stdin fixture → `___`
-- [ ] `bun test` total → `___ pass / ___ fail`
+- [x] Unit test `decideWrite` (open / tidak ada / closed / JSON rusak) → **lulus** (dari Fase 1)
+- [x] Unit test `runGateCheck`: 7 nama tool penulis lintas host, tool non-penulis, persona teacher, input rusak, `--format` salah, urutan resolusi `projectDir`, format json → **lulus**
+- [x] Integration test: spawn `node dist/gate-check.js` dan `node scripts/cli.mjs gate-check` dengan stdin → **lulus**
+- [x] `bun test` total → **384 pass / 0 fail** (+14 test baru)
+- [x] `bun run typecheck` → **lulus**; `bun run build` → **lulus**
 
 **Log Issue**
 
 | ID | Severity | Deskripsi | Status | Resolusi |
 |---|---|---|---|---|
-| F2-01 | | | | |
+| F2-01 | Low | Gate hanya memeriksa "ada claim terbuka", bukan apakah file yang ditulis termasuk daftar `files` milik claim. Perilaku ini sama dengan OpenCode v2.2.2 (bukan regresi). | Deferred | Kandidat perbaikan setelah v3.0.0: cocokkan `tool_input.file_path` dengan `files` claim. Perlu keputusan produk karena bisa mengubah alur pair-programming yang sudah ada. |
+| F2-02 | Low | Belum diuji langsung apakah Claude Code mengirim `agent_type` di payload hook untuk sesi `claude --agent teacher` (dokumen menyebutnya ada). | Open → Fase 4 | Diuji di Gerbang Fase 4. Tanpa itu pun Teacher tetap aman karena `tools:` Teacher tidak memuat `Write`/`Edit`. |
+| F2-03 | Low | Rencana awal menyebut `--format generic` dan subcommand `mcp` di fase ini. | Closed | Diganti `--format exit-code|json`; `mcp` dipindah ke Fase 3. Dicatat di daftar tugas. |
 
 ---
 
