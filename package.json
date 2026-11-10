@@ -47,7 +47,8 @@
     "@opentui/core": "0.4.3",
     "@opentui/solid": "0.4.3",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "zod": "4.1.8"
   },
   "keywords": [
     "opencode",
