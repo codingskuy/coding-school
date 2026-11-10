@@ -33,4 +33,13 @@ describe("renderPrompt", () => {
       }
     }
   })
+
+  it("tells non-OpenCode hosts what to use instead of OpenCode's question tool", () => {
+    expect(renderPrompt("teacher", "opencode")).not.toContain("HOST ENVIRONMENT")
+    expect(renderPrompt("teacher", "claude-code")).toContain("AskUserQuestion")
+    expect(renderPrompt("coach", "pi")).toContain("numbered options")
+    for (const platform of ["dsh", "mcp"] as const) {
+      expect(renderPrompt("coach", platform)).toContain("HOST ENVIRONMENT")
+    }
+  })
 })

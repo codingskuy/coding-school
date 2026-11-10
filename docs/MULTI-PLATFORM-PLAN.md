@@ -1,6 +1,6 @@
 # Rencana Implementasi: CodingSchool Multi-Platform
 
-> Status: **Fase 0–2 selesai , Fase 3 sedang berjalan** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
+> Status: **Fase 0–3 selesai , Fase 4 sedang berjalan** · Dibuat: 2026-11-10 · Basis kode: v2.2.2 (`a24fd8d`)
 > Target rilis: **v3.0.0**
 
 ## 1. Tujuan
@@ -287,38 +287,57 @@ scripts/
 
 ### Fase 3 — Adapter MCP Server
 
+> **Status: SELESAI (2026-11-10)**.
+
 **Tujuan:** satu MCP server stdio yang mengekspos 27 tool `cs_*`.
 
 **Tugas:**
-- [ ] 3.1 `adapters/mcp/server.ts`: buat server, iterasi registry → daftarkan tool (nama, deskripsi, schema zod → JSON Schema).
-- [ ] 3.2 Handler membungkus error menjadi `isError: true` dengan pesan yang bisa dibaca agent (bukan stack trace).
-- [ ] 3.3 Ekspos prompt Teacher/Coach juga sebagai **MCP prompts** (`teacher`, `coach`) untuk harness yang tidak punya konsep subagent.
-- [ ] 3.4 Build target `dist/mcp.js`; jalankan dengan `npx @codingskuy/coding-school mcp`.
-- [ ] 3.5 Pastikan bundle MCP **tidak** meng-import `@opencode-ai/plugin` atau `@opentui/*`.
-- [ ] 3.6 Pindahkan `@opencode-ai/plugin` ke `peerDependencies` (optional) agar pengguna non-OpenCode tidak wajib menginstallnya; verifikasi OpenCode tetap jalan.
+- [x] 3.1 `src/mcp/server.ts` (`createMcpServer`): iterasi registry → `registerTool` dengan schema dari `def.args(z)` (zod 4.6.7 milik server). Lokasi `src/mcp/` dipilih alih-alih `adapters/mcp/` agar tetap di bawah `tsconfig` dan build yang sama.
+- [x] 3.2 Exception handler → `isError: true` dengan pesan `<tool> failed: <pesan>` tanpa stack trace; stack lengkap dikirim ke stderr. Argumen tidak valid ditolak SDK sebelum handler jalan.
+- [x] 3.3 Persona sebagai **MCP prompts** `teacher` dan `coach`, dirender untuk platform host.
+- [x] 3.4 Entry `src/mcp.ts` → `dist/mcp.js`; subcommand `coding-school mcp [--project-dir] [--platform claude-code|pi|dsh|mcp]` (juga env `CODINGSCHOOL_PROJECT_DIR` / `CODINGSCHOOL_PLATFORM`).
+- [x] 3.5 Bundle MCP **mandiri**: SDK dan zod ikut di-bundle, tanpa `@opencode-ai`/`@opentui`. Artinya plugin Claude Code (Fase 4) cukup menjalankan `node dist/mcp.js` tanpa `node_modules`.
+- [x] 3.6 **Diubah dari rencana:** `@opencode-ai/plugin` **tetap di `dependencies`**. Menjadikannya optional peer berisiko membuat OpenCode gagal me-resolve import `tool` saat runtime, dan hal itu tidak bisa diuji tanpa OpenCode (F1-01). Karena bundle MCP mandiri, pengguna host lain tidak bergantung padanya → F3-05.
+- [x] Tambahan: `@modelcontextprotocol/sdk@1.32.2` dan `zod@4.6.7` sebagai devDependency, plus `"overrides": { "zod": "4.6.7" }` agar hanya ada satu zod.
+- [x] Tambahan: catatan "question tool" per platform di prompt dan di `instructions` server MCP (F3-03).
+- [x] Tambahan (keamanan): validasi `repoName` + `execFileSync` di `publishToGitHub`, validasi `folderName` di `initLearningEnv` (F3-01, F3-02).
 
 #### Gerbang Fase 3
 
 **Validasi**
-- [ ] `tools/list` mengembalikan tepat 27 tool dengan schema yang cocok dengan snapshot Fase 1.
-- [ ] Setiap tool bisa dipanggil via MCP Inspector dengan argumen contoh dan menghasilkan output yang sama dengan adapter OpenCode.
-- [ ] `prompts/list` mengembalikan `teacher` dan `coach`.
+- [x] `tools/list` → tepat 27 tool; deskripsi, `properties`, dan `required` identik dengan fixture v2.2.2 (test).
+- [x] Output via MCP **identik** dengan memanggil handler langsung untuk alur 7 tool (roadmap → list → prepare phase → prepare capstone → announce → engineering status → coach dialog) (test).
+- [x] `prompts/list` → `teacher`, `coach`; isi = `renderPrompt(id, platform)` (test).
+- [x] **Uji langsung di Claude Code** (`claude -p` + `--mcp-config` → `node scripts/cli.mjs mcp --platform claude-code`): `cs_create_roadmap` dan `cs_prepare_capstone` jalan; state tersimpan di `.codingschool/` folder project (Claude Code menjalankan server dengan cwd = folder project); teks untuk siswa memakai "`claude --agent coach`".
 
 **Audit**
-- [ ] Server tidak menulis apa pun ke stdout selain protokol MCP (log → stderr). `console.log` di modul inti (mis. migrasi di `src/index.ts:76`) dialihkan.
-- [ ] Tool yang menjalankan perintah eksternal (`cs_publish_handbook`, `cs_init_learning_env`) di-review untuk injeksi argumen.
-- [ ] Ukuran bundle `dist/mcp.js` dicatat: `___ KB`.
+- [x] stdout hanya untuk protokol: `console.log`/`console.info` dialihkan ke stderr di entry; log migrasi lewat logger stderr; error `--platform` salah → stdout kosong (test).
+- [x] Review tool yang menjalankan perintah eksternal:
+  - `publishToGitHub`: **shell injection** lewat `repoName` dari model (`gh repo create ${repoName} …` di `execSync`) → **diperbaiki** (F3-01).
+  - `initLearningEnv`: **path traversal** lewat `folderName` (mis. `../luar`) → **diperbaiki** (F3-02).
+  - `requirements.ts`: perintah berasal dari daftar statis di kode, bukan dari input model → aman.
+  - `getRecentCommits`: `limit` numerik internal → aman.
+- [x] Dependensi: hanya `zod@4.6.7` di `node_modules` (sebelumnya SDK membawa salinan `zod@4.1.8` yang punya advisory) → F0-04 ditutup.
+- [x] Ukuran bundle `dist/mcp.js`: **1.446 KB** (SDK + zod + ajv, tanpa minify) → F3-04.
 
 **Test**
-- [ ] Test kontrak: untuk setiap tool, panggil via MCP client in-process dan bandingkan dengan pemanggilan handler langsung → `___`
-- [ ] Smoke test: `npx @modelcontextprotocol/inspector node dist/mcp.js` → `___`
-- [ ] `bun test` total → `___ pass / ___ fail`
+- [x] Test kontrak MCP in-process (`InMemoryTransport`): daftar tool, kesetaraan output, argumen tidak valid, exception → `isError`, prompts, instructions, resolusi opsi → **lulus**
+- [x] Smoke test stdio: `StdioClientTransport` → `node scripts/cli.mjs mcp` (pengganti MCP Inspector; memakai klien SDK resmi yang sama) → 27 tool, `cs_engineering_status` jalan → **lulus**
+- [x] Test keamanan: 6 nama repo berbahaya dan 6 nama folder berbahaya ditolak tanpa efek samping → **lulus**
+- [x] `bun test` total → **397 pass / 0 fail** (+13 test baru)
+- [x] `bun run typecheck` → **lulus**; `bun run build` → **lulus**
 
 **Log Issue**
 
 | ID | Severity | Deskripsi | Status | Resolusi |
 |---|---|---|---|---|
-| F3-01 | | | | |
+| F3-01 | **High** | Shell injection di `publishToGitHub`: `repoName` dari model masuk ke `execSync(\`gh repo create ${repoName} …\`)`. Contoh: `x; rm -rf ~`. Sudah ada sejak v2.2.2, dan makin berisiko karena MCP membuka tool ini ke lebih banyak host. | Closed | Validasi nama repo (`[A-Za-z0-9_.-]`, opsional `owner/`, tanpa `.`/`..`) + `execFileSync("gh", [...])` tanpa shell. Test regresi memastikan perintah berbahaya tidak dijalankan. Catatan: sebelum regex diperketat, satu test sempat memanggil `gh repo create ../x` sungguhan (gagal karena nama tidak valid, tanpa efek). |
+| F3-02 | Medium | Path traversal di `initLearningEnv`: `folderName` seperti `../luar` membuat folder + `git init` di luar project. Sudah ada sejak v2.2.2. | Closed | Hanya nama folder tunggal (tanpa `/`, `\\`, `.`, `..`) yang diterima; test regresi. |
+| F3-03 | Medium | Sekitar 20 teks di prompt dan output tool (`coach.ts`, `templates.ts`, `diagnosis.ts`, `coach-gate.ts`) menyuruh memakai tool `"question"` milik OpenCode, yang tidak ada di host lain. Ditemukan saat uji langsung di Claude Code. | Closed | Catatan per platform ditambahkan di akhir prompt persona (bagian `HOST ENVIRONMENT`) dan di `instructions` server MCP: Claude Code → `AskUserQuestion`; Pi → teks biasa dengan opsi bernomor; DSH/MCP → tool interaktif bila ada. Prompt OpenCode tetap identik. |
+| F3-04 | Low | `dist/mcp.js` 1,45 MB karena SDK, zod, dan ajv ikut di-bundle. | Accepted | Sebanding dengan manfaatnya (tanpa `node_modules`). Opsi `--minify` dievaluasi di Fase 7. |
+| F3-05 | Low | Pengguna non-OpenCode yang memasang paket npm tetap ikut mengunduh `@opencode-ai/plugin`. | Deferred | Dievaluasi ulang setelah F1-01 (uji di OpenCode asli) bisa dilakukan. |
+| F0-04 | Medium | (dari Fase 0) advisory `zod@4.1.8`. | Closed | Satu versi `zod@4.6.7` lewat `overrides`; bundle MCP tidak lagi berisi 4.1.8. Runtime OpenCode memakai zod milik OpenCode sendiri. |
+| F0-08 | Medium | (dari Fase 0) `console.log` merusak protokol stdio. | Closed | Dialihkan ke stderr di entry MCP; migrasi memakai logger stderr. |
 
 ---
 

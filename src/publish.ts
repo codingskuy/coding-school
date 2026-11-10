@@ -1,4 +1,4 @@
-import { execSync } from "child_process"
+import { execFileSync, execSync } from "child_process"
 import { existsSync, readdirSync } from "fs"
 import { join } from "path"
 
@@ -128,10 +128,18 @@ export function previewPublish(folderPath: string): PublishReport {
 }
 
 
+// GitHub repository name, optionally prefixed with an owner.
+const SAFE_REPO_NAME = /^(?!\.\.?(\/|$))[A-Za-z0-9_.-]+(\/(?!\.\.?$)[A-Za-z0-9_.-]+)?$/
+
 export function publishToGitHub(folderPath: string, repoName: string, isPrivate: boolean = true): PublishReport {
   const gitInstalled = checkGitInstalled()
   if (!gitInstalled) {
     return { action: "publish", gitInstalled: false, ghInstalled: false, repoExists: false, files: [], commits: [], success: false, message: "Git is not installed." }
+  }
+
+  // repoName comes from the model; never let it reach a shell.
+  if (!SAFE_REPO_NAME.test(repoName)) {
+    return { action: "publish", gitInstalled: true, ghInstalled: false, repoExists: false, files: [], commits: [], success: false, message: `Invalid repository name "${repoName}". Use letters, numbers, ".", "-" or "_" (optionally "owner/name").` }
   }
 
   const ghInstalled = checkGhInstalled()
@@ -141,7 +149,7 @@ export function publishToGitHub(folderPath: string, repoName: string, isPrivate:
     if (ghInstalled) {
       try {
         const visibility = isPrivate ? "--private" : "--public"
-        const result = execSync(`gh repo create ${repoName} ${visibility} --source=. --push`, {
+        const result = execFileSync("gh", ["repo", "create", repoName, visibility, "--source=.", "--push"], {
           cwd: folderPath,
           encoding: "utf-8",
           timeout: 30000,

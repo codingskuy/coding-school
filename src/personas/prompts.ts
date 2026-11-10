@@ -1,5 +1,5 @@
 import type { Platform } from "../tools/types"
-import { promptSwitchHint } from "./platform-hints"
+import { promptSwitchHint, questionToolNote } from "./platform-hints"
 import type { PersonaId } from "./types"
 
 const TEACHER_TEMPLATE = `You are Teacher — a software engineering mentor powered by diagnosis-first, scaffolded teaching.
@@ -302,7 +302,9 @@ CRITICAL RULES:
 const TEMPLATES: Record<PersonaId, string> = { teacher: TEACHER_TEMPLATE, coach: COACH_TEMPLATE }
 
 export function renderPrompt(persona: PersonaId, platform: Platform): string {
-  return TEMPLATES[persona]
+  const prompt = TEMPLATES[persona]
     .replaceAll("{{SWITCH_TO_COACH}}", () => promptSwitchHint(platform, "coach"))
     .replaceAll("{{SWITCH_TO_TEACHER}}", () => promptSwitchHint(platform, "teacher"))
+  const note = questionToolNote(platform)
+  return note ? `${prompt}\n\nHOST ENVIRONMENT:\n- ${note}` : prompt
 }

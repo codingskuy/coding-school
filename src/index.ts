@@ -13,10 +13,14 @@ import { decideWrite } from "./gate/check"
 
 const WRITE_TOOLS = ["write", "edit", "strreplace"]
 
+// OpenCode ships its own (older) zod as `tool.schema`. Schemas are built with it
+// at runtime, so zod instances never mix; only the static types differ.
+const hostZod = tool.schema as unknown as Parameters<ToolDef["args"]>[0]
+
 function toOpencodeTool(def: ToolDef<any>) {
   return tool({
     description: def.description,
-    args: def.args(tool.schema),
+    args: def.args(hostZod) as Parameters<typeof tool>[0]["args"],
     execute: (args) => def.execute(args),
   })
 }

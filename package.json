@@ -30,7 +30,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "bun build src/index.ts src/tui.ts src/gate-check.ts --outdir dist --external @opencode-ai/plugin --external @opentui/solid --target node && tsc --emitDeclarationOnly --outDir dist",
+    "build": "bun build src/index.ts src/tui.ts src/gate-check.ts src/mcp.ts --outdir dist --external @opencode-ai/plugin --external @opentui/solid --target node && tsc --emitDeclarationOnly --outDir dist",
     "build:quick": "bun build src/index.ts --outdir dist --external @opencode-ai/plugin --target node",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
@@ -44,11 +44,12 @@
     "date-fns": "^3.0.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@opentui/core": "0.4.3",
     "@opentui/solid": "0.4.3",
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0",
-    "zod": "4.1.8"
+    "zod": "4.6.7"
   },
   "keywords": [
     "opencode",
@@ -69,5 +70,8 @@
   "homepage": "https://github.com/codingskuy/coding-school#readme",
   "bugs": {
     "url": "https://github.com/codingskuy/coding-school/issues"
+  },
+  "overrides": {
+    "zod": "4.6.7"
   }
 }

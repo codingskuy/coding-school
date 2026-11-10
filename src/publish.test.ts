@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test"
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "fs"
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync } from "fs"
 import { join } from "path"
 import { tmpdir } from "os"
 import { execSync } from "child_process"
 
-import { checkPublishEnv, previewPublish } from "./publish"
+import { checkPublishEnv, previewPublish, publishToGitHub } from "./publish"
 
 let tmpDir: string
 
@@ -70,5 +70,17 @@ describe("previewPublish", () => {
     expect(report.success).toBe(true)
     expect(report.files.length).toBe(1)
     expect(report.commits.length).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe("publishToGitHub input validation", () => {
+  it("rejects repository names that could reach a shell, without running anything", () => {
+    const marker = join(tmpDir, "pwned")
+    for (const bad of [`x; touch ${marker}`, "x $(touch pwned)", "../x", "a/b/c", "", "name with space"]) {
+      const report = publishToGitHub(tmpDir, bad, true)
+      expect(report.success).toBe(false)
+      expect(report.message).toContain("Invalid repository name")
+    }
+    expect(existsSync(marker)).toBe(false)
   })
 })

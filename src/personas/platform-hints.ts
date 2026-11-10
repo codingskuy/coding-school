@@ -6,6 +6,9 @@ interface PlatformHints {
   student: Record<PersonaId, string>
   // Used inside the English system prompts.
   prompt: Record<PersonaId, string>
+  // Prompts and tool outputs say "the question tool" (OpenCode's built-in).
+  // Tells other hosts what to use instead; empty on OpenCode.
+  questionTool: string
 }
 
 // OpenCode strings must stay byte-identical to v2.2.2 (see opencode-surface fixture).
@@ -20,6 +23,7 @@ const HINTS: Record<Platform, PlatformHints> = {
       teacher: "dropdown, or `opencode --agent teacher`",
       coach: 'open the agent dropdown and pick "coach", or run `opencode --agent coach`',
     },
+    questionTool: "",
   },
   "claude-code": {
     student: {
@@ -30,6 +34,7 @@ const HINTS: Record<Platform, PlatformHints> = {
       teacher: "exit this session, then run `claude --agent teacher`",
       coach: "exit this session, then run `claude --agent coach`",
     },
+    questionTool: "Wherever these instructions or a tool result say to use the \"question\" tool, use the AskUserQuestion tool.",
   },
   pi: {
     student: {
@@ -40,6 +45,7 @@ const HINTS: Record<Platform, PlatformHints> = {
       teacher: "type `/teacher`",
       coach: "type `/coach`",
     },
+    questionTool: "This environment has no \"question\" tool. Wherever these instructions or a tool result say to use it, ask in plain text with numbered options and wait for the student's reply.",
   },
   dsh: {
     student: {
@@ -50,6 +56,7 @@ const HINTS: Record<Platform, PlatformHints> = {
       teacher: 'select the "teacher" agent preset',
       coach: 'select the "coach" agent preset',
     },
+    questionTool: "Wherever these instructions or a tool result say to use the \"question\" tool, use this environment's interactive question tool if one exists; otherwise ask in plain text with numbered options and wait for the reply.",
   },
   mcp: {
     student: {
@@ -60,11 +67,16 @@ const HINTS: Record<Platform, PlatformHints> = {
       teacher: 'select the "teacher" prompt in your agent app',
       coach: 'select the "coach" prompt in your agent app',
     },
+    questionTool: "Wherever these instructions or a tool result say to use the \"question\" tool, use your host's interactive question tool if one exists; otherwise ask in plain text with numbered options and wait for the reply.",
   },
 }
 
 export function studentSwitchHint(platform: Platform, target: PersonaId): string {
   return HINTS[platform].student[target]
+}
+
+export function questionToolNote(platform: Platform): string {
+  return HINTS[platform].questionTool
 }
 
 export function promptSwitchHint(platform: Platform, target: PersonaId): string {

@@ -271,6 +271,11 @@ async function main() {
       process.argv.splice(2, 1)
       await import(new URL("../dist/gate-check.js", import.meta.url).href)
       break
+    case "mcp":
+      // stdio MCP server; stdout belongs to the protocol, so print nothing here.
+      process.argv.splice(2, 1)
+      await import(new URL("../dist/mcp.js", import.meta.url).href)
+      break
     case "--help":
     case "help":
       console.log(`
@@ -281,6 +286,8 @@ async function main() {
     npx @codingskuy/coding-school gate-check      Claim-gate check for pre-tool hooks
                                                   (reads hook JSON on stdin; exit 0 allow, 2 deny)
         [--project-dir <dir>] [--format exit-code|json]
+    npx @codingskuy/coding-school mcp             Run the MCP server (stdio) with all cs_* tools
+        [--project-dir <dir>] [--platform claude-code|pi|dsh|mcp]
     npx @codingskuy/coding-school help            Show this help
       `)
       break

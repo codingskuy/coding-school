@@ -53,3 +53,14 @@ describe("initLearningEnv", () => {
     expect(prog.xp).toBe(0)
   })
 })
+
+describe("initLearningEnv folder name validation", () => {
+  it("rejects names that escape the project directory", () => {
+    for (const bad of ["../outside", "a/b", "a\\b", "..", ".", "/abs"]) {
+      const result = initLearningEnv(tmpDir, "React", bad)
+      expect(result.success).toBe(false)
+      expect(result.message).toContain("Invalid folder name")
+    }
+    expect(existsSync(join(tmpDir, "..", "outside"))).toBe(false)
+  })
+})
