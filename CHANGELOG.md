@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.0 - 2026-11-10
+## 3.0.0 - 2026-11-12
 
 CodingSchool runs on more agent hosts. Teacher and Coach are now platform-neutral *personas*; each host maps them to its own concept (agent, mode, preset, prompt). Plan and per-phase audit: `docs/MULTI-PLATFORM-PLAN.md`.
 
