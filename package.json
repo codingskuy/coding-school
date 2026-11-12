@@ -1,10 +1,10 @@
 {
   "name": "@codingskuy/coding-school",
-  "version": "2.2.2",
-  "description": "CodingSchool — Dual-agent AI Engineering Mentor plugin for OpenCode. Teacher agent (student diagnosis, scaffolding, competency tracking) + Coach agent (code review, architecture, GRC, project timeline).",
+  "version": "3.0.0",
+  "description": "CodingSchool — Teacher + Coach AI engineering mentor personas for OpenCode, Claude Code, Pi, DeepSeek Harness and any MCP host. Diagnosis-first teaching, claim-gated pair programming, competency tracking.",
   "type": "module",
   "bin": {
-    "coding-school": "./scripts/cli.mjs"
+    "coding-school": "scripts/cli.mjs"
   },
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -22,32 +22,39 @@
   },
   "files": [
     "dist/",
-    "scripts/",
+    "scripts/postinstall.mjs",
+    "scripts/cli.mjs",
     "README.md",
-    "LICENSE.md"
+    "LICENSE.md",
+    ".claude-plugin/",
+    "claude-code/"
   ],
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "bun build src/index.ts src/tui.ts --outdir dist --external @opencode-ai/plugin --external @opentui/solid --target node && tsc --emitDeclarationOnly --outDir dist",
+    "build": "bun build src/index.ts src/tui.ts src/gate-check.ts src/mcp.ts src/pi.ts src/dsh-setup.ts --outdir dist --external @opencode-ai/plugin --external @opentui/solid --external '@earendil-works/*' --target node && tsc --emitDeclarationOnly --outDir dist",
     "build:quick": "bun build src/index.ts --outdir dist --external @opencode-ai/plugin --target node",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/postinstall.mjs",
     "setup": "node scripts/cli.mjs setup",
     "prepublishOnly": "bun run build",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "gen:claude-code": "bun scripts/gen-claude-code.ts"
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.0.0",
     "date-fns": "^3.0.0"
   },
   "devDependencies": {
+    "@earendil-works/pi-coding-agent": "1.5.1",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@opentui/core": "0.4.3",
     "@opentui/solid": "0.4.3",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "zod": "4.6.7"
   },
   "keywords": [
     "opencode",
@@ -58,7 +65,13 @@
     "tutorial",
     "engineering",
     "competency",
-    "grc"
+    "grc",
+    "claude-code",
+    "claude-code-plugin",
+    "mcp",
+    "mcp-server",
+    "pi-package",
+    "deepseek"
   ],
   "license": "MIT",
   "repository": {
@@ -68,5 +81,13 @@
   "homepage": "https://github.com/codingskuy/coding-school#readme",
   "bugs": {
     "url": "https://github.com/codingskuy/coding-school/issues"
+  },
+  "overrides": {
+    "zod": "4.6.7"
+  },
+  "pi": {
+    "extensions": [
+      "./dist/pi.js"
+    ]
   }
 }

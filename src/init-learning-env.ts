@@ -11,8 +11,20 @@ export interface InitResult {
   message: string
 }
 
+// A single folder name directly inside the project — no separators, no "..".
+const SAFE_FOLDER_NAME = /^(?!\.{1,2}$)[^/\\\0]+$/
+
 export function initLearningEnv(projectDir: string, topic: string, folderName: string): InitResult {
   const folderPath = join(projectDir, folderName)
+
+  if (!SAFE_FOLDER_NAME.test(folderName)) {
+    return {
+      success: false,
+      folderPath: projectDir,
+      gitInitialized: false,
+      message: `Invalid folder name "${folderName}". Use a single folder name without "/", "\\" or "..".`,
+    }
+  }
 
   if (existsSync(folderPath)) {
     return {

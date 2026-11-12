@@ -2,14 +2,14 @@
 
 # 🎓 CodingSchool
 
-### AI Engineering Mentor for OpenCode
+### AI Engineering Mentor for OpenCode, Claude Code, Pi & any MCP host
 
 **Two agents. One mission. Real understanding.**
 
-[![Version](https://img.shields.io/badge/version-2.2.2-blue.svg)](https://github.com/codingskuy/codingschool)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)](https://github.com/codingskuy/codingschool)
 [![Installs](https://img.shields.io/badge/installs-1,000-brightgreen?logo=npm)](https://www.npmjs.com/package/@codingskuy/coding-school)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
-[![Tests](https://img.shields.io/badge/tests-356%20passing-brightgreen.svg)](#development)
+[![Tests](https://img.shields.io/badge/tests-440%20passing-brightgreen.svg)](#development)
 [![OpenCode](https://img.shields.io/badge/OpenCode-v0.7+-purple.svg)](https://opencode.ai)
 
 ---
@@ -21,11 +21,21 @@
 
 *Stop copying code you don't understand.* https://codingskuy.github.io/codingschool
 
-CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skills** — not dependency on AI autocomplete.
+CodingSchool is a dual-persona AI mentor (OpenCode plugin, Claude Code plugin, Pi package and MCP server) that builds **real engineering skills** — not dependency on AI autocomplete.
 
 </div>
 
 ---
+
+## ✨ What's New in v3.0.0
+
+**CodingSchool now runs beyond OpenCode.** Teacher and Coach are available in Claude Code (plugin), Pi (package with `/teacher` and `/coach` modes), DeepSeek Harness Web (agent presets) and any MCP host. See [Supported Platforms](#-supported-platforms).
+
+- `coding-school mcp` — all 27 `cs_*` tools as a self-contained MCP server
+- `coding-school gate-check` — the comprehension claim gate as a pre-tool hook for any host
+- `coding-school setup --platform claude-code|pi|dsh|mcp`
+- Security: hardened `cs_publish_handbook` (no shell) and `cs_init_learning_env` (no path traversal)
+- OpenCode users: nothing to change — behavior is identical to v2.2.2
 
 ## ✨ What's New in v2.2.2
 
@@ -55,6 +65,24 @@ CodingSchool is a dual-agent OpenCode plugin that builds **real engineering skil
 ```
 
 **Your learning journey now has a complete home:** Each topic gets its own folder with git initialized from day one. Every concept you learn creates a commit. When you finish, publish your entire learning history to GitHub as a portfolio.
+
+---
+
+## 🧩 Supported Platforms
+
+Teacher and Coach are *personas*: each host has its own name for them (agent, mode, preset). Your progress lives in `.codingschool/`, so you can move between hosts.
+
+| | OpenCode | Claude Code | Pi | DeepSeek Harness | Other MCP hosts |
+|---|---|---|---|---|---|
+| Setup | `setup` | `setup --platform claude-code` | `setup --platform pi` | `setup --platform dsh` | `setup --platform mcp` |
+| Persona is called | primary agent | agent | mode | agent preset (DSH Web) | prompt (MCP) |
+| Switch persona | Tab / dropdown | new session: `claude --agent codingschool:coach` | `/teacher`, `/coach` | new session, pick the preset | pick the MCP prompt |
+| All 27 `cs_*` tools | ✅ | ✅ (MCP) | ✅ (MCP) | ✅ (MCP) | ✅ (MCP) |
+| Teacher can't write files | ✅ enforced | ✅ enforced | ✅ enforced | ✅ enforced (no writer tools) | prompt-only |
+| Coach writes only with a claim | ✅ enforced | ✅ enforced (hook) | ✅ enforced (write/edit) | ✅ with the hook bridge plugin | hook if the host has one |
+| Sidebar TUI | ✅ | — | — | — | — |
+
+"Prompt-only" means the persona is told the rule but the host does not enforce it. DeepSeek Harness is a developer preview, so its support is best effort: presets work in DSH Web (`dsh web --patch …`, written by `setup --platform dsh`); DSH Desktop and headless mode have no presets yet.
 
 ---
 
@@ -103,6 +131,74 @@ Then restart OpenCode and switch agent in the dropdown.
 > **Project-only?** Run `npx @codingskuy/coding-school setup --project` from inside a project to register CodingSchool in just that project's `opencode.json` (the installer only searches up to the nearest Git root, matching OpenCode's own behavior).
 
 > Requires **OpenCode v0.7+** (Plugin V2 API).
+
+### Claude Code
+
+CodingSchool ships as a Claude Code plugin: the `cs_*` tools run as a bundled MCP server, Teacher and Coach are agents, and a `PreToolUse` hook enforces the comprehension claim gate.
+
+```
+/plugin marketplace add codingskuy/coding-school
+/plugin install codingschool@codingskuy
+```
+
+Then start a session with a persona:
+
+```bash
+claude --agent codingschool:teacher   # learn
+claude --agent codingschool:coach     # build the project
+```
+
+Claude Code can't switch the main agent mid-session, so the Teacher → Coach handoff means exiting and starting `claude --agent codingschool:coach`. Your progress lives in `.codingschool/`, so nothing is lost.
+
+- Teacher has no file-writing tools at all (no Write, Edit or Bash).
+- Coach can write only while a claim is open (`cs_claim_open`); the hook blocks Write/Edit otherwise.
+- The hook only acts in Teacher/Coach sessions — your other Claude Code sessions are not affected.
+- Known limitation: Coach can still change files through Bash. Claude Code asks for your permission before a shell command writes files in the default permission mode.
+
+Local development: `bun run build && claude --plugin-dir . --agent codingschool:teacher`.
+
+### Pi
+
+CodingSchool is also a Pi package. Pi calls personas *modes*, and you can switch mid-session.
+
+```bash
+pi install npm:@codingskuy/coding-school
+```
+
+Then, inside Pi:
+
+- `/teacher` — learn with Teacher
+- `/coach` — build the project with Coach
+- `/codingschool off` — back to plain Pi
+
+Or start directly in a mode: `pi --codingschool teacher`.
+
+- Nothing changes until you pick a mode, so the package never affects your other Pi sessions.
+- The `cs_*` tools come from the bundled MCP server (Pi's built-in MCP support).
+- Teacher mode removes `write`, `edit` and `bash`. Coach can `write`/`edit` only while a claim is open.
+- Known limitation: Coach's `bash` is not gated, and Pi does not ask before shell commands. Ask Coach to use `write`/`edit` for code changes.
+
+Pi has no interactive question tool, so Teacher and Coach ask with numbered options in plain text.
+
+### DeepSeek Harness (best effort)
+
+```bash
+npx @codingskuy/coding-school setup --platform dsh --yes
+```
+
+This writes Teacher and Coach agent presets to `$DSH_HOME/codingschool/` (default `~/.dsh/codingschool/`) and prints the `dsh web --patch …` command to start DSH Web with them. Pick the **Teacher** or **Coach** preset when you open a session.
+
+- Teacher's preset has read-only file tools and no shell.
+- Coach's preset gates `write`/`edit` through the claim gate via DSH's hooks bridge.
+- Presets only exist in DSH Web today; DSH Desktop and headless mode are not supported yet.
+
+### Any other MCP host
+
+```bash
+npx @codingskuy/coding-school setup --platform mcp
+```
+
+prints a ready-to-paste `mcpServers` snippet (`npx -y @codingskuy/coding-school mcp`). You get all 27 `cs_*` tools plus `teacher` and `coach` as MCP prompts. The write rules are prompt-only unless your host supports pre-tool hooks — then point the hook at `npx @codingskuy/coding-school gate-check` (exit code 2 = denied, reason on stderr; `--format json` is also available).
 
 ---
 
@@ -443,17 +539,17 @@ The agent **adapts** to the student in real-time:
 The roadmap's **Final Project** section is the student's capstone, built with the Coach agent:
 
 1. **Teacher** teaches all theory/practice items and tracks progress via `Current`/`Last completed`.
-2. When non-capstone items are done, Teacher calls `cs_prepare_capstone` → directs the student to switch to the **Coach** agent (`opencode --agent coach`). Teacher never marks Final Project items done.
+2. When non-capstone items are done, Teacher calls `cs_prepare_capstone` → directs the student to switch to the **Coach** persona (OpenCode: `opencode --agent coach`; Claude Code: `claude --agent codingschool:coach`; Pi: `/coach`). Teacher never marks Final Project items done.
 3. **Coach** sees the `CAPSTONE PROJECT READY` briefing and seeds Phase 1 of the professional workflow from it.
 4. When all milestones are done, `cs_timeline_update` announces `✅ PROJECT COMPLETE`, Coach runs the final review and calls `cs_announce_project_complete`.
-5. Coach directs the student back to the **Teacher** agent (`opencode --agent teacher`), who reads the project summary, marks the Final Project items done (with the summary as handbook notes), and closes the roadmap with a reflection.
+5. Coach directs the student back to the **Teacher** persona (OpenCode: `opencode --agent teacher`; Claude Code: `claude --agent codingschool:teacher`; Pi: `/teacher`), who reads the project summary, marks the Final Project items done (with the summary as handbook notes), and closes the roadmap with a reflection.
 
 ### Comprehension Claim Gate
 
 Coach writes code like a build agent, but the code is **not final until the user claims it**:
 
 1. Coach calls `cs_claim_open` — snapshots the current state of every target file (new + existing).
-2. Coach writes the generated code. **File writes are enforced at the system level**: `permission.ask` denies `write`/`edit`/`strreplace` while no comprehension claim is open — Coach literally cannot edit files outside a claim.
+2. Coach writes the generated code. **File writes are enforced at the system level** while no comprehension claim is open — OpenCode's `permission.ask` denies `write`/`edit`/`strreplace`, Claude Code's `PreToolUse` hook blocks Write/Edit, Pi blocks `write`/`edit`, and DSH uses the hooks bridge. Coach cannot edit files outside a claim (shell commands excepted, see [Supported Platforms](#-supported-platforms)).
 3. Coach asks **3-5 probing questions, multi-turn** (e.g. "Explain line X in your own words", then follow-ups tuned to the answers). Question banks scale with engineering level (junior → mid → senior).
 4. Coach scores each answer (`correct` / `partial` / `incorrect`) and records them in the `qa` argument of `cs_claim_submit`. Aggregate confidence = 70% average + 30% weakest answer, so one lucky guess can't carry the gate.
 5. Verdict via `cs_claim_submit`:
@@ -472,7 +568,7 @@ The dual-agent loop is wired with shared state and observability so Teacher and 
 
 - **Shared context** (`.codingschool/context.json`) — Teacher announces diagnosis (active topic, misconceptions) and Coach writes review/claim findings (weak engineering dimensions, skill gaps, claimed level). Teacher's `cs_teach_concept` output includes a "Context from Coach" block; Coach's `cs_claim_open` output includes a "Context from Teacher" brief. Since v2.2.1 the context also carries the **capstone handoff** (`pendingCapstone`, phase → `project`) and the **project completion** (`completedProject` with the Coach's summary, phase → `done`), so Teacher always knows where the student is in the roadmap.
 - **Checkbox roadmaps & progress** — roadmaps are normalized to `- [ ]`/`- [x]` checklists on creation; each topic tracks `currentItem` (first unfinished) and `lastCompletedItem`, surfaced by `cs_list_roadmap_items`, `cs_update_progress` and `cs_resume_session`.
-- **Claim-gate enforcement** — `permission.ask` denies `write`/`edit`/`strreplace` while no comprehension claim is open, so Coach can only write inside the pair-programming claim flow.
+- **Claim-gate enforcement** — the host's write gate (`permission.ask` on OpenCode, `coding-school gate-check` hooks elsewhere) denies file writes while no comprehension claim is open, so Coach can only write inside the pair-programming claim flow.
 - **Workflow validator** (`.codingschool/workflow.json`) — records tool calls and emits **advisory warnings** (never blocking) when the order is off, e.g. teaching a topic before diagnosis, or submitting a claim with no recorded `cs_claim_open`.
 - **Decision traces** (`.codingschool/logs/YYYY-MM-DD.jsonl`) — debug-only internal logs (agent, tool, sanitized input, outcome, duration). Code, file lists, answers and notes are **never written**. Rotates at 500 lines.
 - **Meta-learning** — the initial hint level is auto-tuned from learning history (struggling topics get more scaffolding, mastered topics less), and re-explanation level is capped for students with poor claim history.
@@ -488,7 +584,7 @@ Trace the lifecycle of a claim: `cs_claim_open` → comprehension Q&A (recorded 
 # Install dependencies
 bun install
 
-# Run all 304 tests
+# Run all 440 tests
 bun test
 
 # Type check
@@ -499,6 +595,17 @@ bun run build
 
 # Quick build (no declarations)
 bun run build:quick
+
+# Regenerate the Claude Code plugin files (CI checks they are up to date)
+bun run gen:claude-code
+```
+
+Try the other hosts locally after `bun run build`:
+
+```bash
+claude --plugin-dir . --agent codingschool:teacher   # Claude Code
+pi -e ./dist/pi.js --codingschool teacher            # Pi
+node dist/mcp.js --platform mcp                      # raw MCP server (stdio)
 ```
 
 ### Test Coverage
@@ -515,15 +622,32 @@ bun run build:quick
   ├── diagnosis.test.ts            15 tests
   ├── progress/tracker.test.ts     14 tests
   ├── roadmap/generator.test.ts    13 tests
-  ├── context.test.ts              13 tests
-  └── ... (9 more test files)
+  ├── context.test.ts              16 tests
+  ├── cli/gate-check.test.ts       19 tests
+  └── ... (21 more test files: MCP server, Claude Code plugin,
+           Pi extension, DSH presets, setup, personas, registry)
   ─────────────────────────────
-  Total: 304 tests  ✅ 0 failures
+  Total: 440 tests  ✅ 0 failures
 ```
 
 ---
 
 ## 📜 Changelog
+
+Full details: [CHANGELOG.md](CHANGELOG.md).
+
+### v3.0.0 — Multi-Platform (2026-11-12)
+
+- Runs on **Claude Code** (plugin), **Pi** (package with `/teacher` / `/coach` modes), **DeepSeek Harness Web** (agent presets) and **any MCP host**
+- `coding-school mcp`, `coding-school gate-check`, `coding-school setup --platform <host>`
+- Security: `cs_publish_handbook` no longer runs the repository name through a shell; `cs_init_learning_env` rejects path traversal
+- OpenCode: no changes needed — identical behavior to v2.2.2
+
+### v2.2.2 — Learning Folder + Git Workflow + Publication (2026-08-19)
+
+- `cs_init_learning_env`: per-topic learning folder with `git init`
+- `cs_publish_handbook`: publish your learning history to GitHub
+- Next-step topic recommendations
 
 ### v2.2.1 — Teacher ↔ Coach Capstone Handoff (2026-08-17)
 

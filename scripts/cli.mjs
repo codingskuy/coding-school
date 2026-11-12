@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync, existsSync } from "fs"
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from "fs"
 import { join, dirname } from "path"
+import { spawnSync } from "child_process"
 import { createInterface } from "readline"
 import { homedir, platform } from "os"
 
 const PACKAGE_NAME = "@codingskuy/coding-school"
-const VERSION = "2.2.2"
+const VERSION = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version
 
 const BANNER = `
   ╔═══════════════════════════════════════════════════════════╗
@@ -21,8 +22,9 @@ const BANNER = `
 
 const OPTS = {
   opencode: { label: "OpenCode (Teacher + Coach)", selected: true, disabled: false },
-  piAgent: { label: "PI Agent (coming soon)", selected: false, disabled: true },
 }
+
+const PLATFORMS = ["opencode", "claude-code", "pi", "dsh", "mcp"]
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -257,14 +259,173 @@ async function runSetup() {
   reportSuccess(scope)
 }
 
+
+// ── Other Platforms ──────────────────────────────────────────────────────
+
+const MARKETPLACE = "codingskuy/coding-school"
+const CLAUDE_TOOL_PERMISSION = "mcp__plugin_codingschool_cs__*"
+
+function flagValue(name) {
+  const i = process.argv.indexOf(name)
+  return i >= 0 ? process.argv[i + 1] : undefined
+}
+
+// --yes accepts every prompt; without a TTY nothing is changed unless --yes.
+async function confirm(label) {
+  if (process.argv.includes("--yes")) return true
+  if (!process.stdin.isTTY) return false
+  return ask(label, true)
+}
+
+function hasCommand(cmd) {
+  const probe = platform() === "win32" ? "where" : "which"
+  return spawnSync(probe, [cmd], { stdio: "ignore" }).status === 0
+}
+
+function claudeSettingsPath() {
+  const base = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude")
+  return join(base, "settings.json")
+}
+
+// Adds the CodingSchool MCP tools to Claude Code's permissions.allow, keeping a
+// backup of the previous file. Returns "added" | "present" | "invalid".
+function allowClaudeTools(settingsPath) {
+  let settings = {}
+  if (existsSync(settingsPath)) {
+    settings = readJson(settingsPath)
+    if (!settings || typeof settings !== "object" || Array.isArray(settings)) return "invalid"
+  }
+  const allow = settings.permissions?.allow ?? []
+  if (allow.includes(CLAUDE_TOOL_PERMISSION)) return "present"
+  if (existsSync(settingsPath)) copyFileSync(settingsPath, settingsPath + ".bak")
+  settings.permissions = { ...settings.permissions, allow: [...allow, CLAUDE_TOOL_PERMISSION] }
+  writeJson(settingsPath, settings)
+  return "added"
+}
+
+async function setupClaudeCode() {
+  console.log("  Claude Code — install the plugin from inside Claude Code:\n")
+  console.log(`    /plugin marketplace add ${MARKETPLACE}`)
+  console.log("    /plugin install codingschool@codingskuy\n")
+  console.log("  Then start a persona:\n")
+  console.log("    claude --agent codingschool:teacher")
+  console.log("    claude --agent codingschool:coach\n")
+
+  const settingsPath = claudeSettingsPath()
+  console.log("  Claude Code asks before each new MCP tool. CodingSchool can be allowed once:")
+  console.log(`    ${CLAUDE_TOOL_PERMISSION} → ${settingsPath}\n`)
+  if (!(await confirm("Allow the CodingSchool tools in your Claude Code settings?"))) {
+    console.log("  Skipped. Claude Code will ask the first time each tool is used.\n")
+    return
+  }
+  const result = allowClaudeTools(settingsPath)
+  if (result === "invalid") {
+    console.log(`  ✗ ${settingsPath} is not valid JSON — left unchanged. Add "${CLAUDE_TOOL_PERMISSION}" to permissions.allow yourself.\n`)
+  } else if (result === "present") {
+    console.log("  ✓ Already allowed.\n")
+  } else {
+    console.log(`  ✓ Allowed (previous file saved as ${settingsPath}.bak).\n`)
+  }
+}
+
+async function setupPi() {
+  const command = ["install", `npm:${PACKAGE_NAME}`]
+  if (!hasCommand("pi")) {
+    console.log("  Pi is not on your PATH. Install the package from Pi with:\n")
+    console.log(`    pi ${command.join(" ")}\n`)
+  } else if (await confirm(`Run "pi ${command.join(" ")}" now?`)) {
+    const result = spawnSync("pi", command, { stdio: "inherit" })
+    if (result.status !== 0) {
+      console.log(`\n  ✗ pi exited with code ${result.status}. Run it yourself: pi ${command.join(" ")}\n`)
+      return
+    }
+    console.log("\n  ✓ Installed.\n")
+  } else {
+    console.log(`  Skipped. Run it yourself: pi ${command.join(" ")}\n`)
+  }
+  console.log("  In Pi: /teacher, /coach, /codingschool off — or start with: pi --codingschool teacher\n")
+}
+
+function mcpServerSnippet(platformId) {
+  return JSON.stringify({
+    mcpServers: {
+      codingschool: { command: "npx", args: ["-y", PACKAGE_NAME, "mcp", "--platform", platformId] },
+    },
+  }, null, 2)
+}
+
+function printGateHook() {
+  console.log("  Claim gate: if the host runs pre-tool hooks (exit 2 = deny), add this command")
+  console.log("  for file-writing tools so Coach can write only while a claim is open:\n")
+  console.log(`    npx -y ${PACKAGE_NAME} gate-check\n`)
+  console.log("  Without hooks the gate is prompt-only: the personas are told the rule, but")
+  console.log("  the host does not enforce it.\n")
+}
+
+async function setupDsh() {
+  console.log("  DeepSeek Harness (developer preview — best effort).\n")
+  console.log("  Teacher and Coach become agent presets, available in DSH Web (dsh web).")
+  console.log("  DSH Desktop, headless and the SDK/ACP modes have no presets yet.\n")
+
+  const dshHome = process.env.DSH_HOME || join(homedir(), ".dsh")
+  const dir = join(dshHome, "codingschool")
+  const { writeCodingSchoolDshFiles, DSH_HOOKS_PACKAGE } = await import(new URL("../dist/dsh-setup.js", import.meta.url).href)
+
+  if (!(await confirm(`Write the CodingSchool presets to ${dir}?`))) {
+    console.log("  Skipped. Re-run with --yes to write them.\n")
+    return
+  }
+  const patchPath = writeCodingSchoolDshFiles(dir)
+  console.log(`  ✓ Wrote ${patchPath}\n`)
+  console.log("  1. Install DSH's Claude Code hook bridge (enforces Coach's claim gate):\n")
+  console.log(`       dsh plugin --profile web add ${DSH_HOOKS_PACKAGE}@<your dsh version>\n`)
+  console.log("  2. Start DSH Web with the presets:\n")
+  console.log(`       dsh web --patch "${patchPath}"\n`)
+  console.log('  3. On a new session, pick "Teacher" or "Coach" in the mode picker.')
+  console.log("     DSH can't change the preset after a session starts, so the Teacher → Coach")
+  console.log("     handoff means starting a new session with the Coach preset.\n")
+}
+
+function setupMcp() {
+  console.log("  Any MCP host — add this server to the host's MCP configuration:\n")
+  console.log(mcpServerSnippet("mcp").replace(/^/gm, "    ") + "\n")
+  console.log('  Personas are available as the MCP prompts "teacher" and "coach".\n')
+  printGateHook()
+}
+
+async function runPlatformSetup(platformId) {
+  console.log(BANNER)
+  if (platformId === "claude-code") return setupClaudeCode()
+  if (platformId === "pi") return setupPi()
+  if (platformId === "dsh") return setupDsh()
+  return setupMcp()
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────
 
 async function main() {
   const subcommand = process.argv[2] || "setup"
 
   switch (subcommand) {
-    case "setup":
-      await runSetup()
+    case "setup": {
+      const platformId = flagValue("--platform") ?? "opencode"
+      if (!PLATFORMS.includes(platformId)) {
+        console.log(`  Unknown platform: ${platformId}\n  Use one of: ${PLATFORMS.join(", ")}`)
+        process.exit(1)
+      }
+      if (platformId === "opencode") await runSetup()
+      else await runPlatformSetup(platformId)
+      break
+    }
+    case "gate-check":
+      // Called by host pre-tool hooks; keep argv as if dist/gate-check.js ran directly.
+      process.argv.splice(2, 1)
+      await import(new URL("../dist/gate-check.js", import.meta.url).href)
+      break
+    case "mcp":
+      // stdio MCP server; stdout belongs to the protocol, so print nothing here.
+      process.argv.splice(2, 1)
+      await import(new URL("../dist/mcp.js", import.meta.url).href)
       break
     case "--help":
     case "help":
@@ -273,6 +434,14 @@ async function main() {
     npx @codingskuy/coding-school setup          Interactive setup (default: global scope)
     npx @codingskuy/coding-school setup --project Register only in the current project
     npx @codingskuy/coding-school setup --global  Force global scope
+    npx @codingskuy/coding-school setup --platform <p>
+        Set up another host: claude-code | pi | dsh | mcp  (default: opencode)
+        [--yes] accept every prompt (non-interactive)
+    npx @codingskuy/coding-school gate-check      Claim-gate check for pre-tool hooks
+                                                  (reads hook JSON on stdin; exit 0 allow, 2 deny)
+        [--project-dir <dir>] [--format exit-code|json]
+    npx @codingskuy/coding-school mcp             Run the MCP server (stdio) with all cs_* tools
+        [--project-dir <dir>] [--platform claude-code|pi|dsh|mcp]
     npx @codingskuy/coding-school help            Show this help
       `)
       break

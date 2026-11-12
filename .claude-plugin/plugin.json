@@ -1,0 +1,42 @@
+{
+  "name": "codingschool",
+  "version": "3.0.0",
+  "description": "CodingSchool — Teacher and Coach personas for learning software engineering (diagnosis-first teaching, claim-gated pair programming).",
+  "author": {
+    "name": "CodingSkuy"
+  },
+  "license": "MIT",
+  "keywords": [
+    "education",
+    "mentor",
+    "teacher",
+    "coach"
+  ],
+  "agents": [
+    "./claude-code/agents/teacher.md",
+    "./claude-code/agents/coach.md"
+  ],
+  "mcpServers": {
+    "cs": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/dist/mcp.js",
+        "--platform",
+        "claude-code"
+      ]
+    }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/gate-check.js\" --scope persona"
+          }
+        ]
+      }
+    ]
+  }
+}
